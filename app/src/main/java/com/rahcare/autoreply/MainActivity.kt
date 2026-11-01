@@ -67,12 +67,12 @@ class MainActivity : Activity() {
     private var updBusy = false                    // আপডেট ডাউনলোড/ইনস্টল চলছে
     private var updStage = 0                       // ০ বসে আছে, ১ ডাউনলোড, ২ ইনস্টল নিশ্চিতকরণের অপেক্ষা
     private var updPct = -1                        // ডাউনলোডের শতাংশ (-১ মানে অজানা)
+    private var updTxt = ""                        // বোতামের ভেতরে মাঝখানে দেখানো লেখা: "37%" / "Installing…"
     private lateinit var editPage: FrameLayout     // রুল এডিটর: আলাদা পুরো পাতা
     private var editDirty: (() -> Boolean)? = null
     private lateinit var fabV: FabView            // নিচে ডানের গোল বোতাম: + (নতুন নিয়ম) ⇄ ✔ (এডিটরে সংরক্ষণ)
     private var editSave: (() -> Unit)? = null    // এডিটর খোলা থাকলে ✔ চাপলে যা চলবে
     private var editPrevMode = 0
-    private lateinit var updPctTv: TextView     // আপডেট চলার সময় বোতামের ঠিক ওপরে শুধু শতাংশ
     private lateinit var updBtn: TextView        // নিচে মাঝখানে ভাসমান আপডেট বোতাম (আপডেট থাকলেই দেখায়)
 
     private val ink = Color.parseColor("#EAF2F3")
@@ -159,9 +159,17 @@ class MainActivity : Activity() {
                 if (editPage.visibility == View.VISIBLE) editSave?.invoke() else edit(null, Store.rules(this@MainActivity))
             }
         }
-        // নিচে মাঝখানে ভাসমান আপডেট বোতাম, + বোতামের সমান লাইনে
+        // নিচে ভাসমান আপডেট বোতাম: পর্দার ঠিক মাঝখানে, + বোতামের সমান লাইনে। আকার স্থির — লেখা বা শতাংশ যাই হোক বদলায় না।
+        // চাপলে "Update" ঝাপসা প্লেসহোল্ডার হয়ে যায়, বোতামের ভেতরেই শতাংশ/Installing… আঁকা হয়, আর বোতামটাই প্রগ্রেস বার
         updBtn = object : TextView(this) {
             private val fp = Paint(Paint.ANTI_ALIAS_FLAG)
+            private val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+                color = Color.WHITE
+                textSize = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 17f, resources.displayMetrics)
+                setShadowLayer(d(3).toFloat(), 0f, 0f, Color.parseColor("#B3000000"))
+            }
             override fun onDraw(c: Canvas) {
                 if (updBusy) {
                     val w = width.toFloat()
@@ -177,7 +185,11 @@ class MainActivity : Activity() {
                         c.restore()
                     }
                 }
-                super.onDraw(c)
+                super.onDraw(c) // "Update" (চলার সময় ঝাপসা প্লেসহোল্ডার)
+                if (updBusy && updTxt.isNotEmpty()) {
+                    val y = height / 2f - (tp.descent() + tp.ascent()) / 2f
+                    c.drawText(updTxt, width / 2f, y, tp)
+                }
             }
         }.apply {
             text = "Update"
@@ -187,32 +199,12 @@ class MainActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
             gravity = Gravity.CENTER
             background = rounded(accent, 26)
-            setPadding(d(26), 0, d(26), 0)
             elevation = d(6).toFloat()
             visibility = View.GONE
         }
-        // স্ক্রিন চার ভাগ: ডানের এক ভাগ + বোতামের, বাঁয়ের তিন ভাগে আপডেট বোতাম মাঝখানে (ডান মার্জিন দিয়ে সেই তিন ভাগের মাঝে রাখা হয়)
-        frame.addView(updBtn, FrameLayout.LayoutParams(wc, d(52), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+        val updW = minOf(d(160), resources.displayMetrics.widthPixels - 2 * d(86)) // দুই পাশে সমান ফাঁক; ডানে + বোতামের জায়গা ছাড়া
+        frame.addView(updBtn, FrameLayout.LayoutParams(updW, d(52), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
             bottomMargin = d(27)
-            leftMargin = d(16)
-            rightMargin = updRight()
-        })
-        // বোতামের ঠিক ওপরে শুধু শতাংশ (বোতামের আকার বদলায় না; ভেতরে "Update" লেখা প্লেসহোল্ডার হয়ে থাকে)
-        updPctTv = TextView(this).apply {
-            textSize = 13f
-            includeFontPadding = false
-            setTextColor(Color.WHITE)
-            setTypeface(typeface, Typeface.BOLD)
-            gravity = Gravity.CENTER
-            background = rounded(Color.parseColor("#134A44"), 14)
-            setPadding(d(12), d(4), d(12), d(4))
-            elevation = d(6).toFloat()
-            visibility = View.GONE
-        }
-        frame.addView(updPctTv, FrameLayout.LayoutParams(wc, wc, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
-            bottomMargin = d(27 + 52 + 6)
-            leftMargin = d(16)
-            rightMargin = updRight()
         })
         editPage = FrameLayout(this).apply {
             setBackgroundColor(Color.parseColor("#0B0F14"))
@@ -371,22 +363,19 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    // ডানের এক ভাগ (অন্তত + বোতামের জায়গা) বাদ দিয়ে বাঁয়ের তিন ভাগ
-    private fun updRight() = maxOf(resources.displayMetrics.widthPixels / 4, d(90))
+    // বোতামের আকার, জায়গা ও "Update" লেখা একই থাকে; চাপলে "Update" ঝাপসা প্লেসহোল্ডার হয়, ভেতরে শতাংশ আঁকা হয়
     private fun startUpd() {
         updBusy = true
         updStage = 1
         updPct = 0
-        updBtn.setTextColor(Color.WHITE)
-        updBtn.setShadowLayer(d(3).toFloat(), 0f, 0f, Color.parseColor("#CC000000"))
-        updPctTv.text = "0%"
-        updPctTv.visibility = View.VISIBLE
-        updBtn.invalidate() // বোতামের আকার ও "Update" লেখা একই থাকে; বোতামটাই প্রগ্রেস বার
+        updTxt = "0%"
+        updBtn.setTextColor(Color.argb(115, 255, 255, 255)) // প্লেসহোল্ডার: ~৪৫% সাদা
+        updBtn.invalidate()
     }
 
     private fun setUpd(pct: Int, label: String) {
         updPct = pct
-        updPctTv.text = label
+        updTxt = label
         updBtn.invalidate()
     }
 
@@ -394,10 +383,9 @@ class MainActivity : Activity() {
         updBusy = false
         updStage = 0
         updPct = -1
+        updTxt = ""
         updBtn.setTextColor(Color.parseColor("#06201C"))
-        updBtn.setShadowLayer(0f, 0f, 0f, 0)
         updBtn.text = if (packageManager.canRequestPackageInstalls()) "Update" else "Allow update"
-        updPctTv.visibility = View.GONE
         updBtn.invalidate()
     }
 
@@ -892,7 +880,6 @@ class MainActivity : Activity() {
         } else {
             updBtn.visibility = View.GONE
         }
-        updPctTv.visibility = if (updBusy && updBtn.visibility == View.VISIBLE) View.VISIBLE else View.GONE
 
         // ========== সাইডবারের বাকি অংশ ==========
         // অনুমতি: শুধু যেগুলো বাকি আছে সেগুলোর বোতাম দেখায়; সব ঠিক থাকলে কার্ডটাই থাকে না।
@@ -1462,7 +1449,6 @@ class MainActivity : Activity() {
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         editPage.visibility = View.VISIBLE
         updBtn.visibility = View.GONE
-        updPctTv.visibility = View.GONE
         fabV.morph(true)   // + → ✔
     }
 
