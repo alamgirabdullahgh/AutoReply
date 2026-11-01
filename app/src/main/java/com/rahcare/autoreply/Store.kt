@@ -219,7 +219,7 @@ object Store {
 
     fun rules(c: Context): MutableList<Rule> {
         val s = p(c).getString("rules", null)
-            ?: return mutableListOf(defaultSalam())
+            ?: return mutableListOf(defaultSalam(), defaultGreet())
         val a = JSONArray(s)
         val l = MutableList(a.length()) {
             val o = a.getJSONObject(it)
@@ -244,13 +244,36 @@ object Store {
             for (x in l) if (x.keys == defaultSalam().keys && x.mode == M_CONTAINS) { x.mode = M_EXACT; ch = true }
             if (ch) saveRules(c, l)
         }
+        // একবারের হালনাগাদ: Hi/Hello আলাদা নিয়মে যায় (উত্তর "আসসালামু আলাইকুম"); নিজে বদলানো নিয়ম ছোঁয়া হয় না
+        if (!p(c).getBoolean("m_hihello_v1", false)) {
+            p(c).edit().putBoolean("m_hihello_v1", true).apply()
+            var ch = false
+            for (x in l) if (x.keys == OLD_SALAM_KEYS) { x.keys = defaultSalam().keys; ch = true }
+            val has = l.any { r -> val k = r.keys.lowercase(); k.contains("hello") || k.contains("হ্যালো") }
+            if (!has) {
+                val at = l.indexOfFirst { it.keys == defaultSalam().keys }
+                if (at >= 0) l.add(at + 1, defaultGreet()) else l.add(defaultGreet())
+                ch = true
+            }
+            if (ch) saveRules(c, l)
+        }
         return l
     }
 
-    // ডিফল্ট নিয়ম: সালাম ও শুভেচ্ছার নানা রূপে "ওয়া আলাইকুম আসসালাম"
+    // আগের ডিফল্ট সালাম নিয়মের কী-গুলো (Hi, Hello সহ) — অবিকৃত থাকলে নতুন ডিফল্টে হালনাগাদ হয়
+    private const val OLD_SALAM_KEYS = "আসসালামু আলাইকুম, আসসালামুয়ালাইকুম, Assalamu Alaikum, Assalamualaikum, Hi, Hello"
+
+    // ডিফল্ট নিয়ম ১: সালামের নানা রূপে "ওয়া আলাইকুম আসসালাম"
     private fun defaultSalam() = Rule(
-        "আসসালামু আলাইকুম, আসসালামুয়ালাইকুম, Assalamu Alaikum, Assalamualaikum, Hi, Hello",
+        "আসসালামু আলাইকুম, আসসালামুয়ালাইকুম, Assalamu Alaikum, Assalamualaikum",
         "ওয়া আলাইকুম আসসালাম",
+        mode = M_EXACT
+    )
+
+    // ডিফল্ট নিয়ম ২: হাই/হ্যালো এলে "আসসালামু আলাইকুম"
+    private fun defaultGreet() = Rule(
+        "হাই, হ্যালো, Hi, Hello",
+        "আসসালামু আলাইকুম",
         mode = M_EXACT
     )
 
