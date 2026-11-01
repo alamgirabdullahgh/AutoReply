@@ -72,6 +72,7 @@ class MainActivity : Activity() {
     private lateinit var fabV: FabView            // নিচে ডানের গোল বোতাম: + (নতুন নিয়ম) ⇄ ✔ (এডিটরে সংরক্ষণ)
     private var editSave: (() -> Unit)? = null    // এডিটর খোলা থাকলে ✔ চাপলে যা চলবে
     private var editPrevMode = 0
+    private lateinit var updPctTv: TextView     // আপডেট চলার সময় বোতামের ঠিক ওপরে শুধু শতাংশ
     private lateinit var updBtn: TextView        // নিচে মাঝখানে ভাসমান আপডেট বোতাম (আপডেট থাকলেই দেখায়)
 
     private val ink = Color.parseColor("#EAF2F3")
@@ -193,6 +194,23 @@ class MainActivity : Activity() {
         // স্ক্রিন চার ভাগ: ডানের এক ভাগ + বোতামের, বাঁয়ের তিন ভাগে আপডেট বোতাম মাঝখানে (ডান মার্জিন দিয়ে সেই তিন ভাগের মাঝে রাখা হয়)
         frame.addView(updBtn, FrameLayout.LayoutParams(wc, d(52), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
             bottomMargin = d(27)
+            leftMargin = d(16)
+            rightMargin = updRight()
+        })
+        // বোতামের ঠিক ওপরে শুধু শতাংশ (বোতামের আকার বদলায় না; ভেতরে "Update" লেখা প্লেসহোল্ডার হয়ে থাকে)
+        updPctTv = TextView(this).apply {
+            textSize = 13f
+            includeFontPadding = false
+            setTextColor(Color.WHITE)
+            setTypeface(typeface, Typeface.BOLD)
+            gravity = Gravity.CENTER
+            background = rounded(Color.parseColor("#134A44"), 14)
+            setPadding(d(12), d(4), d(12), d(4))
+            elevation = d(6).toFloat()
+            visibility = View.GONE
+        }
+        frame.addView(updPctTv, FrameLayout.LayoutParams(wc, wc, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+            bottomMargin = d(27 + 52 + 6)
             leftMargin = d(16)
             rightMargin = updRight()
         })
@@ -355,46 +373,20 @@ class MainActivity : Activity() {
 
     // ডানের এক ভাগ (অন্তত + বোতামের জায়গা) বাদ দিয়ে বাঁয়ের তিন ভাগ
     private fun updRight() = maxOf(resources.displayMetrics.widthPixels / 4, d(90))
-    private fun updFullW() = resources.displayMetrics.widthPixels - updRight() - d(16)
-    private var updAnim: ValueAnimator? = null
-
-    // আপডেট বোতামের প্রস্থ মাঝখান থেকে দুদিকে বাড়ায়/কমায়; wrap = true হলে শেষে আবার লেখা অনুযায়ী প্রস্থ
-    private fun animUpdWidth(to: Int, wrap: Boolean) {
-        updAnim?.cancel()
-        val lp = updBtn.layoutParams as FrameLayout.LayoutParams
-        val from = if (updBtn.width > 0) updBtn.width else to
-        if (updBtn.visibility != View.VISIBLE || from == to) {
-            lp.width = if (wrap) ViewGroup.LayoutParams.WRAP_CONTENT else to
-            updBtn.layoutParams = lp
-            return
-        }
-        updAnim = ValueAnimator.ofInt(from, to).apply {
-            duration = 260
-            addUpdateListener { lp.width = it.animatedValue as Int; updBtn.layoutParams = lp }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(a: Animator) {
-                    lp.width = if (wrap) ViewGroup.LayoutParams.WRAP_CONTENT else to
-                    updBtn.layoutParams = lp
-                }
-            })
-            start()
-        }
-    }
-
     private fun startUpd() {
         updBusy = true
         updStage = 1
         updPct = 0
         updBtn.setTextColor(Color.WHITE)
         updBtn.setShadowLayer(d(3).toFloat(), 0f, 0f, Color.parseColor("#CC000000"))
-        updBtn.text = "Downloading… 0%"
-        updBtn.invalidate()
-        animUpdWidth(updFullW(), false) // বাঁয়ের তিন ভাগ জুড়ে বাড়ে; + বোতাম যেখানে ছিল সেখানেই
+        updPctTv.text = "0%"
+        updPctTv.visibility = View.VISIBLE
+        updBtn.invalidate() // বোতামের আকার ও "Update" লেখা একই থাকে; বোতামটাই প্রগ্রেস বার
     }
 
     private fun setUpd(pct: Int, label: String) {
         updPct = pct
-        updBtn.text = label
+        updPctTv.text = label
         updBtn.invalidate()
     }
 
@@ -405,10 +397,8 @@ class MainActivity : Activity() {
         updBtn.setTextColor(Color.parseColor("#06201C"))
         updBtn.setShadowLayer(0f, 0f, 0f, 0)
         updBtn.text = if (packageManager.canRequestPackageInstalls()) "Update" else "Allow update"
+        updPctTv.visibility = View.GONE
         updBtn.invalidate()
-        // লেখা অনুযায়ী ছোট প্রস্থ মেপে মাঝখানে ফিরে আসে
-        updBtn.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
-        animUpdWidth(updBtn.measuredWidth, true)
     }
 
     // APK নামিয়ে PackageInstaller দিয়ে ইনস্টল করে। auto = true হলে (নিজে থেকে শুরু) নীরব ইনস্টল চেষ্টা হয়;
@@ -432,7 +422,7 @@ class MainActivity : Activity() {
         Thread {
             try {
                 Updater.installNow(app, url, silent,
-                    { pct -> runOnUiThread { setUpd(pct, "Downloading… $pct%") } },
+                    { pct -> runOnUiThread { setUpd(pct, "$pct%") } },
                     {
                         runOnUiThread {
                             updStage = 2
@@ -902,6 +892,7 @@ class MainActivity : Activity() {
         } else {
             updBtn.visibility = View.GONE
         }
+        updPctTv.visibility = if (updBusy && updBtn.visibility == View.VISIBLE) View.VISIBLE else View.GONE
 
         // ========== সাইডবারের বাকি অংশ ==========
         // অনুমতি: শুধু যেগুলো বাকি আছে সেগুলোর বোতাম দেখায়; সব ঠিক থাকলে কার্ডটাই থাকে না।
@@ -1471,6 +1462,7 @@ class MainActivity : Activity() {
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         editPage.visibility = View.VISIBLE
         updBtn.visibility = View.GONE
+        updPctTv.visibility = View.GONE
         fabV.morph(true)   // + → ✔
     }
 
