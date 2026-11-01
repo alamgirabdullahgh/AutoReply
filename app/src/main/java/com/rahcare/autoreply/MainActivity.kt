@@ -165,9 +165,9 @@ class MainActivity : Activity() {
             private val fp = Paint(Paint.ANTI_ALIAS_FLAG)
             private val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                textAlign = Paint.Align.CENTER
+                textAlign = Paint.Align.RIGHT
                 color = Color.WHITE
-                textSize = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 17f, resources.displayMetrics)
+                textSize = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 16f, resources.displayMetrics)
                 setShadowLayer(d(3).toFloat(), 0f, 0f, Color.parseColor("#B3000000"))
             }
             override fun onDraw(c: Canvas) {
@@ -188,12 +188,12 @@ class MainActivity : Activity() {
                 super.onDraw(c) // "Update" (চলার সময় ঝাপসা প্লেসহোল্ডার)
                 if (updBusy && updTxt.isNotEmpty()) {
                     val y = height / 2f - (tp.descent() + tp.ascent()) / 2f
-                    c.drawText(updTxt, width / 2f, y, tp)
+                    c.drawText(updTxt, width - d(16).toFloat(), y, tp)
                 }
             }
         }.apply {
             text = "Update"
-            textSize = 15f
+            textSize = 22f
             includeFontPadding = false
             setTextColor(Color.parseColor("#06201C"))
             setTypeface(typeface, Typeface.BOLD)
@@ -369,7 +369,9 @@ class MainActivity : Activity() {
         updStage = 1
         updPct = 0
         updTxt = "0%"
-        updBtn.setTextColor(Color.argb(115, 255, 255, 255)) // প্লেসহোল্ডার: ~৪৫% সাদা
+        updBtn.setTextColor(Color.argb(140, 255, 255, 255)) // প্লেসহোল্ডার: বড় "Update" বাঁয়ে ঝাপসা, শতাংশ ডানে
+        updBtn.gravity = Gravity.CENTER_VERTICAL or Gravity.START
+        updBtn.setPadding(d(18), 0, 0, 0)
         updBtn.invalidate()
     }
 
@@ -385,6 +387,8 @@ class MainActivity : Activity() {
         updPct = -1
         updTxt = ""
         updBtn.setTextColor(Color.parseColor("#06201C"))
+        updBtn.gravity = Gravity.CENTER
+        updBtn.setPadding(0, 0, 0, 0)
         updBtn.text = if (packageManager.canRequestPackageInstalls()) "Update" else "Allow update"
         updBtn.invalidate()
     }
