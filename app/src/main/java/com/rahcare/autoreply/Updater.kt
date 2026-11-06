@@ -161,9 +161,9 @@ object Updater {
     fun confirmNotice(c: Context, ui: Intent) {
         try {
             val nm = c.getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(NotificationChannel("update", "AutoReply আপডেট", NotificationManager.IMPORTANCE_DEFAULT))
+            nm.createNotificationChannel(NotificationChannel("update_q", "AutoReply আপডেট", NotificationManager.IMPORTANCE_LOW))
             val pi = PendingIntent.getActivity(c, 12, ui, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            val n = Notification.Builder(c, "update")
+            val n = Notification.Builder(c, "update_q")
                 .setSmallIcon(android.R.drawable.stat_sys_download_done)
                 .setContentTitle("AutoReply-এর নতুন সংস্করণ তৈরি")
                 .setContentText("চাপুন — ইনস্টল নিশ্চিত করুন")
@@ -194,31 +194,19 @@ object Updater {
         val go = Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         // ১) সরাসরি খোলার চেষ্টা (নতুন Android ব্যাকগ্রাউন্ড থেকে খুলতে না দিলে নিঃশব্দে ব্যর্থ হয়)
         try { c.startActivity(go) } catch (e: Exception) {}
-        // ২) ব্যর্থ হলে ভরসা: চাপলেই খোলে এমন নোটিফিকেশন
-        try {
-            val nm = c.getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(NotificationChannel("updated", "আপডেট সম্পন্ন", NotificationManager.IMPORTANCE_HIGH))
-            val pi = PendingIntent.getActivity(c, 13, go, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            val n = Notification.Builder(c, "updated")
-                .setSmallIcon(android.R.drawable.stat_sys_download_done)
-                .setContentTitle("AutoReply আপডেট হয়েছে")
-                .setContentText("সংস্করণ ${curVer(c)} চালু আছে। অ্যাপ খুলতে চাপুন")
-                .setContentIntent(pi)
-                .setAutoCancel(true)
-                .build()
-            nm.notify(13, n)
-        } catch (e: Exception) {}
+        // আপডেটের পর কোনো নোটিফিকেশন নয় (পুরোনো "updated" চ্যানেলও মুছে দিই)
+        try { c.getSystemService(NotificationManager::class.java).deleteNotificationChannel("updated") } catch (e: Exception) {}
     }
 
     private fun notice(c: Context) {
         try {
             val nm = c.getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(NotificationChannel("update", "AutoReply আপডেট", NotificationManager.IMPORTANCE_DEFAULT))
+            nm.createNotificationChannel(NotificationChannel("update_q", "AutoReply আপডেট", NotificationManager.IMPORTANCE_LOW))
             val go = Intent(c, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra("upd", true)
             val pi = PendingIntent.getActivity(c, 8, go, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            val n = Notification.Builder(c, "update")
+            val n = Notification.Builder(c, "update_q")
                 .setSmallIcon(android.R.drawable.stat_sys_download_done)
                 .setContentTitle("AutoReply-এর নতুন সংস্করণ এসেছে")
                 .setContentText("চাপুন — আপডেট শুরু হবে")

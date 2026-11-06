@@ -44,8 +44,8 @@ class UpdateReceiver : BroadcastReceiver() {
                 // টোস্টে লেখা কেটে যায়, তাই পুরো বার্তা নোটিফিকেশনেও দেখানো হয়
                 try {
                     val nm = c.getSystemService(NotificationManager::class.java)
-                    nm.createNotificationChannel(NotificationChannel("update", "AutoReply আপডেট", NotificationManager.IMPORTANCE_DEFAULT))
-                    nm.notify(9, Notification.Builder(c, "update")
+                    nm.createNotificationChannel(NotificationChannel("update_q", "AutoReply আপডেট", NotificationManager.IMPORTANCE_LOW))
+                    nm.notify(9, Notification.Builder(c, "update_q")
                         .setSmallIcon(android.R.drawable.stat_notify_error)
                         .setContentTitle("আপডেট হয়নি")
                         .setContentText(msg)
