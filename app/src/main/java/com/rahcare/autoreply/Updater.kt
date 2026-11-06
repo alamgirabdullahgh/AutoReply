@@ -13,7 +13,7 @@ import java.net.URL
 
 // GitHub-এ নতুন রিলিজ এলে নিজে থেকে ধরে: অ্যাপ খোলা থাকলে ব্যানার, বন্ধ থাকলে নোটিফিকেশন
 object Updater {
-    const val REPO = "raqialamgirabdullah-rgb/AutoReply"
+    const val REPO = "alamgirabdullahgh/AutoReply"
 
     class Info(val v: Int, val url: String)
 
