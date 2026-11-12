@@ -8,33 +8,25 @@
 </head>
 <body>
 <div id="app">
-  <header id="bar">
-    <button id="menu-btn" class="iconbtn" aria-label="Menu"><i></i><i></i><i></i></button>
-    <div class="title">AutoReply</div>
-    <label class="pill"><input type="checkbox" id="sw-enabled"><span></span></label>
-  </header>
-
-  <main id="home">
-    <div id="rules"></div>
-  </main>
-
-  <button id="fab" aria-label="নতুন নিয়ম">+</button>
-  <button id="update-btn" class="hidden"><span class="fill"></span><span class="lbl">Update</span><span class="pct"></span></button>
-
-  <div id="scrim"></div>
   <aside id="side">
-    <div class="side-head"><b>Menu</b><button id="side-x" class="x">✕</button></div>
-
-    <div class="sec">
-      <div class="row"><b class="grow">AI চ্যাট</b><button class="ghost" id="ai-open">সেটিংস</button><label class="pill"><input type="checkbox" id="ai-on"><span></span></label></div>
+    <div class="brand">
+      <div class="logo">AR</div>
+      <b class="grow">AutoReply</b>
+      <label class="pill" title="মূল সুইচ: বন্ধ থাকলে কোনো অ্যাপেই উত্তর যাবে না"><input type="checkbox" id="sw-enabled"><span></span></label>
     </div>
+    <div class="state" id="master-state"></div>
+
+    <nav>
+      <button class="nav active" data-go="rules" id="nav-rules">নিয়ম</button>
+      <button class="nav" data-go="ai" id="nav-ai">AI চ্যাট <span class="tag" id="ai-tag"></span></button>
+    </nav>
 
     <div class="sec">
       <h3>কোন অ্যাপে চলবে</h3>
-      <div class="cell"><div class="grow"><b>WhatsApp</b><div class="sub" id="st-WhatsApp">বন্ধ</div></div><button class="ghost" data-open="WhatsApp">খুলুন</button><label class="pill"><input type="checkbox" id="sw-WhatsApp"><span></span></label></div>
-      <div class="cell"><div class="grow"><b>Telegram</b><div class="sub" id="st-Telegram">বন্ধ</div></div><button class="ghost" data-open="Telegram">খুলুন</button><label class="pill"><input type="checkbox" id="sw-Telegram"><span></span></label></div>
-      <div class="cell"><div class="grow"><b>Messenger</b><div class="sub">শুধু দেখার জন্য</div></div><button class="ghost" data-open="Messenger">খুলুন</button></div>
-      <p class="hint">প্রথমবার \"খুলুন\" চেপে একবার লগইন করুন। এরপর অ্যাপ চালু থাকলে উত্তর যাবে।</p>
+      <div class="cell"><button class="app" data-open="WhatsApp"><b>WhatsApp</b><span class="sub" id="st-WhatsApp">বন্ধ</span></button><label class="pill"><input type="checkbox" id="sw-WhatsApp"><span></span></label></div>
+      <div class="cell"><button class="app" data-open="Telegram"><b>Telegram</b><span class="sub" id="st-Telegram">বন্ধ</span></button><label class="pill"><input type="checkbox" id="sw-Telegram"><span></span></label></div>
+      <div class="cell"><button class="app" data-open="Messenger"><b>Messenger</b><span class="sub">শুধু দেখার জন্য</span></button></div>
+      <p class="hint">নামে চাপলে সেই অ্যাপ খোলে (প্রথমবার একবার লগইন করুন)। এরপর অ্যাপ চালু থাকলে খোলা না রেখেও উত্তর যাবে।</p>
     </div>
 
     <div class="sec">
@@ -45,79 +37,80 @@
     <div class="sec">
       <h3>সেটিং</h3>
       <div class="row"><span class="grow">কম্পিউটার চালু হলে নিজে চালু হোক</span><label class="pill"><input type="checkbox" id="sw-autostart"><span></span></label></div>
-      <div class="row">উত্তরের আগে অপেক্ষা <input type="number" id="delay-min" min="0" max="60" class="num"> – <input type="number" id="delay-max" min="0" max="60" class="num"> সেকেন্ড</div>
-      <p class="hint">জানালা বন্ধ করলে অ্যাপ ঘড়ির পাশে (ট্রে) চলতে থাকে।</p>
+      <div class="row"><span class="grow">উত্তরের আগে অপেক্ষা</span></div>
+      <div class="row delay"><input type="number" id="delay-min" min="0" max="60" class="num"> – <input type="number" id="delay-max" min="0" max="60" class="num"> <span class="sub">সেকেন্ড</span></div>
     </div>
 
-    <div class="sec ver">
-      <b id="ver">AutoReply</b>
-      <button class="ghost" id="check-upd">আপডেট খুঁজুন</button>
+    <div class="grow"></div>
+    <div class="foot">
+    <button id="update-btn" class="hidden"><span class="fill"></span><span class="lbl">Update</span><span class="pct"></span></button>
+    <div class="ver"><b id="ver">AutoReply</b><button class="ghost" id="check-upd">আপডেট খুঁজুন</button></div>
     </div>
   </aside>
 
-  <!-- নিয়ম সম্পাদনার পুরো পাতা -->
-  <section id="editor" class="page hidden">
-    <header class="bar2">
-      <button id="ed-back" class="iconbtn">←</button>
-      <div class="title" id="ed-title">Rule</div>
-      <button id="ed-more" class="iconbtn">⋮</button>
-      <div id="ed-menu" class="popmenu hidden"><button id="ed-del">Delete rule</button></div>
-    </header>
-    <div class="pagebody">
-      <div class="card">
-        <div class="ct">Received message</div>
-        <div class="cs">মেসেজ কেমন হলে উত্তর যাবে</div>
-        <textarea id="ed-keys" rows="2"></textarea>
-        <div id="ed-modes"></div>
-      </div>
-      <div class="card">
-        <div class="ct">Automatic reply</div>
-        <div class="cs">যে উত্তর যাবে</div>
-        <textarea id="ed-reply" rows="3" placeholder="Type the reply"></textarea>
-      </div>
-      <div class="card">
-        <div class="ct">Reply to</div>
-        <div class="cs">কার মেসেজে</div>
-        <div class="row"><div class="grow"><b>People</b><div class="sub">Individual chats</div></div><label class="pill"><input type="checkbox" id="ed-person"><span></span></label></div>
-        <div class="row"><div class="grow"><b>Groups</b><div class="sub">Group chats</div></div><label class="pill"><input type="checkbox" id="ed-group"><span></span></label></div>
-      </div>
+  <section id="center">
+    <div id="rules-view">
+      <header class="head">
+        <div><h1>নিয়ম</h1><div class="sub">ওপরের নিয়ম আগে মেলে। কোনোটা না মিললে আর AI চালু থাকলে AI উত্তর দেয়।</div></div>
+        <button id="add-rule" class="primary">+ নতুন নিয়ম</button>
+      </header>
+      <div id="rules"></div>
     </div>
-    <button id="ed-save" class="fab2" aria-label="সংরক্ষণ">✔</button>
+    <div id="views"></div>
   </section>
 
-  <!-- AI সেটিংস পাতা -->
-  <section id="aipage" class="page hidden">
-    <header class="bar2">
-      <button id="ai-back" class="iconbtn">←</button>
-      <div class="title">AI সহকারী</div>
-    </header>
-    <div class="pagebody">
-      <div class="card">
-        <label class="fld">API কী<input type="password" id="ai-key" autocomplete="off" spellcheck="false" placeholder="API কী পেস্ট করুন"></label>
-        <p class="hint" id="ai-detect"></p>
-        <label class="fld">নির্দেশ<textarea id="ai-cmd" rows="4" placeholder="কী করবে, কী করবে না"></textarea></label>
-        <label class="fld">প্রতিষ্ঠানের তথ্য<textarea id="ai-info" rows="7" placeholder="নাম, সেবা, দাম, ঠিকানা, সময়, যোগাযোগ"></textarea></label>
-        <details>
-          <summary>উন্নত সেটিংস</summary>
-          <label class="fld">প্রোভাইডার
-            <select id="ai-prov"><option value="auto">স্বয়ংক্রিয়</option><option value="gemini">Gemini (Google)</option><option value="claude">Claude (Anthropic)</option><option value="openai">OpenAI-compatible</option></select>
-          </label>
-          <label class="fld">মডেল (ঐচ্ছিক)<input type="text" id="ai-model"></label>
-          <label class="fld">Base URL<input type="text" id="ai-base"></label>
-        </details>
-        <div class="row"><button id="ai-test" class="ghost">পরীক্ষা করুন</button><span id="ai-result" class="hint"></span></div>
+  <section id="panel" class="hidden">
+    <!-- নিয়ম সম্পাদক -->
+    <div id="editor" class="pane hidden">
+      <header class="phead"><h2 id="ed-title">Rule</h2><button class="x" id="ed-close" title="বন্ধ (Esc)">✕</button></header>
+      <div class="pbody">
+        <div class="card">
+          <div class="ct">Received message</div>
+          <div class="cs">কেমন মেসেজ এলে উত্তর যাবে</div>
+          <textarea id="ed-keys" rows="3"></textarea>
+          <div id="ed-modes"></div>
+        </div>
+        <div class="card">
+          <div class="ct">Automatic reply</div>
+          <div class="cs">যে উত্তর যাবে</div>
+          <textarea id="ed-reply" rows="4" placeholder="Type the reply"></textarea>
+        </div>
+        <div class="card">
+          <div class="ct">Reply to</div>
+          <div class="cs">কার মেসেজে</div>
+          <div class="row"><div class="grow"><b>People</b><div class="sub">Individual chats</div></div><label class="pill"><input type="checkbox" id="ed-person"><span></span></label></div>
+          <div class="row"><div class="grow"><b>Groups</b><div class="sub">Group chats</div></div><label class="pill"><input type="checkbox" id="ed-group"><span></span></label></div>
+        </div>
+      </div>
+      <footer class="pfoot"><button class="danger" id="ed-del">মুছুন</button><div class="grow"></div><button class="ghost" id="ed-cancel">বাতিল</button><button class="primary" id="ed-save">সংরক্ষণ</button></footer>
+    </div>
+
+    <!-- AI সেটিংস -->
+    <div id="aipage" class="pane hidden">
+      <header class="phead"><h2>AI সহকারী</h2><button class="x" id="ai-close" title="বন্ধ (Esc)">✕</button></header>
+      <div class="pbody">
+        <div class="card">
+          <div class="row"><div class="grow"><b>AI চ্যাট চালু</b><div class="sub">কোনো নিয়ম না মিললে AI উত্তর দেয়</div></div><label class="pill"><input type="checkbox" id="ai-on"><span></span></label></div>
+        </div>
+        <div class="card">
+          <label class="fld">API কী<input type="password" id="ai-key" autocomplete="off" spellcheck="false" placeholder="API কী পেস্ট করুন"></label>
+          <p class="hint" id="ai-detect"></p>
+          <label class="fld">নির্দেশ<textarea id="ai-cmd" rows="4" placeholder="কী করবে, কী করবে না"></textarea></label>
+          <label class="fld">প্রতিষ্ঠানের তথ্য<textarea id="ai-info" rows="7" placeholder="নাম, সেবা, দাম, ঠিকানা, সময়, যোগাযোগ"></textarea></label>
+          <details>
+            <summary>উন্নত সেটিংস</summary>
+            <label class="fld">প্রোভাইডার
+              <select id="ai-prov"><option value="auto">স্বয়ংক্রিয়</option><option value="gemini">Gemini (Google)</option><option value="claude">Claude (Anthropic)</option><option value="openai">OpenAI-compatible</option></select>
+            </label>
+            <label class="fld">মডেল (ঐচ্ছিক)<input type="text" id="ai-model"></label>
+            <label class="fld">Base URL<input type="text" id="ai-base"></label>
+          </details>
+          <div class="row"><button id="ai-test" class="ghost">পরীক্ষা করুন</button><span id="ai-result" class="hint"></span></div>
+          <p class="hint">শুধু মেসেজের লেখা আপনার বেছে নেওয়া AI সেবায় যায় (নাম/নম্বর নয়)। API কী শুধু এই কম্পিউটারে থাকে।</p>
+        </div>
       </div>
     </div>
   </section>
-
-  <!-- WhatsApp/Telegram/Messenger ওয়েব (লগইনের জন্য) -->
-  <section id="viewer" class="page hidden">
-    <header class="bar2">
-      <button id="vw-back" class="iconbtn">←</button>
-      <div class="title" id="vw-title"></div>
-    </header>
-  </section>
-  <div id="views"></div>
 </div>
 <script src="renderer.js"></script>
 </body>
