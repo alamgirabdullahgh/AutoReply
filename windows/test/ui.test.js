@@ -51,64 +51,118 @@ test('মূল সুইচ', async () => {
   assert.strictEqual(calls.saved.at(-1).enabled, false);
 });
 
-test('+ চেপে নতুন নিয়ম: খালি থাকলে সংরক্ষণ হয় না, ভরলে হয় (Exact ডিফল্ট)', async () => {
-  const { d, calls, S } = await boot();
-  d.querySelector('#fab').click();
+const tick = (ms) => new Promise((r) => setTimeout(r, ms || 10));
+
+test('+ নতুন নিয়ম: ডান পাশে সম্পাদক খোলে; খালি থাকলে সংরক্ষণ হয় না, ভরলে হয় (Exact ডিফল্ট)', async () => {
+  const { d, calls } = await boot();
+  assert.ok(d.querySelector('#panel').classList.contains('hidden'));
+  d.querySelector('#add-rule').click();
+  await tick();
+  assert.ok(!d.querySelector('#panel').classList.contains('hidden'));
   assert.ok(!d.querySelector('#editor').classList.contains('hidden'));
   assert.strictEqual(d.querySelector('#ed-title').textContent, 'New rule');
   assert.ok(d.querySelector('.mode.sel').textContent.includes('Exact match'));
   d.querySelector('#ed-save').click();
-  await new Promise((r) => setTimeout(r, 10));
+  await tick();
   assert.strictEqual(calls.saved.length, 0);
   d.querySelector('#ed-keys').value = 'দাম কত';
   d.querySelector('#ed-reply').value = '৫০০ টাকা';
   d.querySelector('#ed-save').click();
-  await new Promise((r) => setTimeout(r, 10));
+  await tick();
   const r = calls.saved.at(-1).rules.at(-1);
   assert.deepStrictEqual([r.keys, r.reply, r.mode, r.person, r.group, r.on], ['দাম কত', '৫০০ টাকা', 1, true, false, true]);
   assert.strictEqual(d.querySelectorAll('#rules .rule').length, 3);
-  assert.ok(d.querySelector('#editor').classList.contains('hidden'));
+  assert.ok(d.querySelector('#panel').classList.contains('hidden'));
 });
 
-test('নিয়মে চেপে সম্পাদনা ও মিলের ধরন বদল', async () => {
+test('নিয়মে চাপলে সম্পাদনা (কার্ড চিহ্নিত), মিলের ধরন বদল', async () => {
   const { d, calls } = await boot();
   d.querySelector('#rules .rule .col').click();
+  await tick();
   assert.strictEqual(d.querySelector('#ed-title').textContent, 'Rule 1');
-  const modes = d.querySelectorAll('.mode');
-  modes[3].click(); // RegEx
+  assert.ok(d.querySelector('#rules .rule').classList.contains('sel'));
+  d.querySelectorAll('.mode')[3].click(); // RegEx
   assert.match(d.querySelector('#ed-keys').placeholder, /RegEx/);
   d.querySelector('#ed-keys').value = '^হ[াি]ই$';
   d.querySelector('#ed-save').click();
-  await new Promise((r) => setTimeout(r, 10));
+  await tick();
   assert.strictEqual(calls.saved.at(-1).rules[0].mode, 4);
 });
 
 test('ভুল RegEx সংরক্ষণ হয় না', async () => {
   const { d, calls } = await boot();
   d.querySelector('#rules .rule .col').click();
+  await tick();
   d.querySelectorAll('.mode')[3].click();
   d.querySelector('#ed-keys').value = '([';
   d.querySelector('#ed-save').click();
-  await new Promise((r) => setTimeout(r, 10));
+  await tick();
   assert.strictEqual(calls.saved.length, 0);
 });
 
 test('নিয়ম মোছা (নিশ্চিত করার পর)', async () => {
   const { d, calls } = await boot();
   d.querySelector('#rules .rule .col').click();
+  await tick();
   d.querySelector('#ed-del').click();
-  await new Promise((r) => setTimeout(r, 5));
-  [...d.querySelectorAll('.dialog button')].find((b) => b.textContent === 'Delete').click();
-  await new Promise((r) => setTimeout(r, 10));
+  await tick(5);
+  [...d.querySelectorAll('.dialog button')].find((b) => b.textContent === 'মুছুন').click();
+  await tick();
   assert.strictEqual(calls.saved.at(-1).rules.length, 1);
 });
 
-test('মেনু খোলে/বন্ধ হয়', async () => {
+test('অসংরক্ষিত পরিবর্তন নিয়ে অন্য নিয়মে গেলে জিজ্ঞেস করে; "থাকুন"-এ আগেরটাই থাকে', async () => {
   const { d } = await boot();
-  d.querySelector('#menu-btn').click();
-  assert.ok(d.querySelector('#side').classList.contains('show'));
-  d.querySelector('#scrim').click();
-  assert.ok(!d.querySelector('#side').classList.contains('show'));
+  d.querySelector('#rules .rule .col').click();
+  await tick();
+  d.querySelector('#ed-reply').value = 'বদলানো উত্তর';
+  d.querySelectorAll('#rules .rule .col')[1].click();
+  await tick(5);
+  [...d.querySelectorAll('.dialog button')].find((b) => b.textContent === 'থাকুন').click();
+  await tick();
+  assert.strictEqual(d.querySelector('#ed-title').textContent, 'Rule 1');
+  assert.strictEqual(d.querySelector('#ed-reply').value, 'বদলানো উত্তর');
+});
+
+test('▲▼ দিয়ে ক্রম বদল ও সংরক্ষণ; প্রথমটার ▲ বন্ধ', async () => {
+  const { d, calls } = await boot();
+  const first = d.querySelectorAll('#rules .rule')[0];
+  assert.ok(first.querySelectorAll('.mv button')[0].disabled);
+  first.querySelectorAll('.mv button')[1].click();
+  await tick();
+  const rules = calls.saved.at(-1).rules;
+  assert.match(rules[0].keys, /হাই/);
+  assert.match(rules[1].keys, /আসসালামু/);
+});
+
+test('সাইডবার সবসময় খোলা; মূল সুইচ ও অবস্থা লেখা', async () => {
+  const { d } = await boot();
+  assert.ok(!d.querySelector('#side').classList.contains('hidden'));
+  assert.match(d.querySelector('#master-state').textContent, /চালু/);
+  const cb = d.querySelector('#sw-enabled');
+  cb.checked = false; cb.dispatchEvent(new d.defaultView.Event('change'));
+  await tick();
+  assert.match(d.querySelector('#master-state').textContent, /বন্ধ/);
+});
+
+test('AI চ্যাট: সাইডবার থেকে ডান পাশে সেটিংস খোলে ও আবার চাপলে বন্ধ', async () => {
+  const { d } = await boot();
+  d.querySelector('#nav-ai').click();
+  await tick();
+  assert.ok(!d.querySelector('#aipage').classList.contains('hidden'));
+  assert.ok(d.querySelector('#editor').classList.contains('hidden'));
+  d.querySelector('#nav-ai').click();
+  await tick();
+  assert.ok(d.querySelector('#panel').classList.contains('hidden'));
+});
+
+test('অ্যাপে চাপলে মাঝের অংশে ওয়েব খোলে, "নিয়ম"-এ চাপলে ফেরে', async () => {
+  const { d } = await boot();
+  d.querySelector('[data-open="WhatsApp"]').click();
+  assert.ok(d.body.classList.contains('viewing'));
+  assert.ok(d.querySelector('webview.view.active'));
+  d.querySelector('#nav-rules').click();
+  assert.ok(!d.body.classList.contains('viewing'));
 });
 
 test('আপডেট না থাকলে বোতাম লুকানো, সংস্করণ দেখায়', async () => {

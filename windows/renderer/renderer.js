@@ -57,9 +57,14 @@
   function save(patch) { return window.ar.setSettings(patch).then((s) => { S = s; return s; }); }
   function saveDebounced(patch) { clearTimeout(saveTimer); saveTimer = setTimeout(() => save(patch), 400); }
 
-  // ---------- মেনু ----------
-  function openMenu() { $('#side').classList.add('show'); $('#scrim').classList.add('show'); }
-  function closeMenu() { $('#side').classList.remove('show'); $('#scrim').classList.remove('show'); }
+  // ---------- অংশ (ডানের প্যানেল) ----------
+  function showPane(name) {
+    ['editor', 'aipage'].forEach((p) => $('#' + p).classList.toggle('hidden', p !== name));
+    $('#panel').classList.toggle('hidden', !name);
+    $('#nav-ai').classList.toggle('active', name === 'aipage');
+    if (name !== 'editor') document.querySelectorAll('.rule.sel').forEach((c) => c.classList.remove('sel'));
+  }
+  function openPane() { return !$('#editor').classList.contains('hidden') ? 'editor' : (!$('#aipage').classList.contains('hidden') ? 'aipage' : null); }
 
   // ---------- লগ (সর্বশেষ কার্যকলাপ) ----------
   function addLog(app, msg) {
@@ -97,16 +102,18 @@
   }
   function openViewer(app) {
     ensureView(app);
-    closeMenu();
-    $('#vw-title').textContent = app;
-    $('#viewer').classList.remove('hidden');
     Object.keys(views).forEach((k) => views[k].classList.toggle('active', k === app));
     document.body.classList.add('viewing');
+    document.querySelectorAll('.app').forEach((b) => b.classList.toggle('active', b.dataset.open === app));
+    $('#nav-rules').classList.remove('active');
+    $('#nav-ai').classList.remove('active');
   }
   function closeViewer() {
-    $('#viewer').classList.add('hidden');
     document.body.classList.remove('viewing');
     Object.keys(views).forEach((k) => views[k].classList.remove('active'));
+    document.querySelectorAll('.app').forEach((b) => b.classList.remove('active'));
+    $('#nav-rules').classList.add('active');
+    $('#nav-ai').classList.toggle('active', openPane() === 'aipage');
     // অটো-রিপ্লের অ্যাপ বন্ধ থাকলে ট্যাবটা আবার বাদ
     AUTO_APPS.forEach((a) => { if (!S.apps[a]) dropView(a); });
     if (views.Messenger) dropView('Messenger');
@@ -143,22 +150,46 @@
   function renderStatus() {
     AUTO_APPS.forEach((a) => {
       const s = status[a] || 'বন্ধ';
-      $('#st-' + a).textContent = s === 'চালু' ? '✔ সংযুক্ত — মেসেজের অপেক্ষায়' : (views[a] ? s + ' (প্রথমবার \"খুলুন\" চেপে লগইন করুন)' : 'বন্ধ');
+      $('#st-' + a).textContent = s === 'চালু' ? '✔ সংযুক্ত — মেসেজের অপেক্ষায়' : (views[a] ? s + ' — লগইন করুন' : 'বন্ধ');
     });
   }
 
-  // ---------- নিয়মের তালিকা (মূল পাতা) ----------
+  // ---------- নিয়মের তালিকা ----------
+  function modeLabel(v) { const m = MODES.find((x) => x[0] === v); return m ? m[1] : 'Contains'; }
+
+  function renderMaster() {
+    const st = $('#master-state');
+    st.textContent = S.enabled ? 'চালু — উত্তর যাচ্ছে' : 'বন্ধ — কোনো অ্যাপে উত্তর যাবে না';
+    st.className = 'state ' + (S.enabled ? 'ok' : 'off');
+    $('#ai-tag').textContent = S.ai && S.ai.on ? 'চালু' : '';
+  }
+
+  async function moveRule(i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= S.rules.length) return;
+    const r = S.rules[i];
+    S.rules.splice(i, 1);
+    S.rules.splice(j, 0, r);
+    await save({ rules: S.rules });
+    renderRules();
+  }
+
   function renderRules() {
     const box = $('#rules');
     box.textContent = '';
-    if (!S.rules.length) { box.appendChild(el('div', 'empty', 'কোনো নিয়ম নেই। নিচে ডানের + চেপে যোগ করুন।')); return; }
-    S.rules.forEach((r) => {
-      const card = el('div', 'rule' + (r.on ? ' on' : ''));
+    if (!S.rules.length) { box.appendChild(el('div', 'empty', 'কোনো নিয়ম নেই। ওপরের "+ নতুন নিয়ম" চেপে যোগ করুন।')); return; }
+    S.rules.forEach((r, i) => {
+      const card = el('div', 'rule' + (r.on ? ' on' : '') + (ed && ed.rule === r ? ' sel' : ''));
       const col = el('div', 'col');
       col.appendChild(el('div', 'rcv', 'Receive:  ' + r.keys));
       col.appendChild(el('div', 'ln'));
       col.appendChild(el('div', 'snd', 'Send:  ' + r.reply));
+      col.appendChild(el('div', 'meta', modeLabel(r.mode) + ' · ' + [r.person ? 'People' : '', r.group ? 'Groups' : ''].filter(Boolean).join(' + ')));
       col.onclick = () => openEditor(r);
+      const mv = el('div', 'mv');
+      const up = el('button', '', '▲'); up.title = 'ওপরে (আগে মিলবে)'; up.disabled = i === 0; up.onclick = () => moveRule(i, -1);
+      const dn = el('button', '', '▼'); dn.title = 'নিচে'; dn.disabled = i === S.rules.length - 1; dn.onclick = () => moveRule(i, 1);
+      mv.appendChild(up); mv.appendChild(dn);
       const sw = el('label', 'pill');
       const cb = document.createElement('input');
       cb.type = 'checkbox';
@@ -167,12 +198,13 @@
       sw.appendChild(cb);
       sw.appendChild(document.createElement('span'));
       card.appendChild(col);
+      card.appendChild(mv);
       card.appendChild(sw);
       box.appendChild(card);
     });
   }
 
-  // ---------- নিয়ম সম্পাদক ----------
+  // ---------- নিয়ম সম্পাদক (ডান পাশে) ----------
   function renderModes() {
     const box = $('#ed-modes');
     box.textContent = '';
@@ -189,34 +221,41 @@
     $('#ed-keys').placeholder = HINTS[ed.mode] || HINTS.def;
   }
 
-  function openEditor(r) {
+  function editorDirty() {
+    if (!ed) return false;
+    return $('#ed-keys').value.trim() !== ed.orig.keys || $('#ed-reply').value.trim() !== ed.orig.reply ||
+      $('#ed-person').checked !== ed.orig.person || $('#ed-group').checked !== ed.orig.group || ed.mode !== ed.orig.mode;
+  }
+
+  // অসংরক্ষিত পরিবর্তন থাকলে জিজ্ঞেস করে; true মানে এগোনো যাবে
+  async function okToLeave() {
+    if (openPane() === 'editor' && editorDirty()) {
+      const v = await dialog('পরিবর্তন সংরক্ষণ হয়নি', 'সংরক্ষণ না করে ছেড়ে গেলে পরিবর্তন হারাবে।', [['থাকুন', 0], ['বাদ দিন', 1]]);
+      return !!v;
+    }
+    return true;
+  }
+
+  async function openEditor(r) {
+    if (!(await okToLeave())) return;
     ed = { rule: r || null, mode: r ? r.mode : 1, orig: r ? { keys: r.keys, reply: r.reply, person: !!r.person, group: !!r.group, mode: r.mode } : { keys: '', reply: '', person: true, group: false, mode: 1 } };
     const num = r ? S.rules.indexOf(r) + 1 : S.rules.length + 1;
     $('#ed-title').textContent = r ? 'Rule ' + num : 'New rule';
-    $('#ed-more').classList.toggle('hidden', !r);
-    $('#ed-menu').classList.add('hidden');
+    $('#ed-del').classList.toggle('hidden', !r);
     $('#ed-keys').value = ed.orig.keys;
     $('#ed-reply').value = ed.orig.reply;
     $('#ed-person').checked = ed.orig.person;
     $('#ed-group').checked = ed.orig.group;
     renderModes();
-    $('#editor').classList.remove('hidden');
+    if (document.body.classList.contains('viewing')) closeViewer();
+    showPane('editor');
+    renderRules();
+    $('#ed-keys').focus();
   }
 
-  function editorDirty() {
-    return $('#ed-keys').value.trim() !== ed.orig.keys || $('#ed-reply').value.trim() !== ed.orig.reply ||
-      $('#ed-person').checked !== ed.orig.person || $('#ed-group').checked !== ed.orig.group || ed.mode !== ed.orig.mode;
-  }
+  function closeEditor() { ed = null; showPane(null); renderRules(); }
 
-  function closeEditor() { $('#editor').classList.add('hidden'); $('#ed-menu').classList.add('hidden'); ed = null; renderRules(); }
-
-  async function backEditor() {
-    if (ed && editorDirty()) {
-      const v = await dialog('Discard changes?', 'আপনার পরিবর্তন সংরক্ষণ করা হয়নি।', [['Keep editing', 0], ['Discard', 1]]);
-      if (!v) return;
-    }
-    closeEditor();
-  }
+  async function cancelEditor() { if (await okToLeave()) closeEditor(); }
 
   async function saveEditor() {
     const keys = $('#ed-keys').value.trim();
@@ -238,8 +277,7 @@
   }
 
   async function deleteRule() {
-    $('#ed-menu').classList.add('hidden');
-    const v = await dialog('Delete rule', 'Delete this rule?', [['Cancel', 0], ['Delete', 1]]);
+    const v = await dialog('নিয়ম মুছবেন?', 'এই নিয়মটা মুছে যাবে।', [['বাতিল', 0], ['মুছুন', 1]]);
     if (!v || !ed || !ed.rule) return;
     S.rules.splice(S.rules.indexOf(ed.rule), 1);
     await save({ rules: S.rules });
@@ -276,15 +314,23 @@
     const onChange = () => {
       $('#ai-detect').textContent = detectLabel($('#ai-key').value.trim());
       saveDebounced({ ai: aiCfg() });
+      setTimeout(renderMaster, 450);
     };
     ['#ai-key', '#ai-cmd', '#ai-info', '#ai-prov', '#ai-model', '#ai-base'].forEach((s) => { $(s).addEventListener('input', onChange); $(s).addEventListener('change', onChange); });
     $('#ai-on').onchange = () => {
       const c = aiCfg();
-      if (c.on && !c.key) { toast('আগে "সেটিংস"-এ API কী এবং নির্দেশ বা তথ্য দিন'); }
-      save({ ai: c });
+      if (c.on && !c.key) { toast('আগে API কী এবং নির্দেশ বা তথ্য দিন'); }
+      save({ ai: c }).then(renderMaster);
     };
-    $('#ai-open').onclick = () => { closeMenu(); $('#aipage').classList.remove('hidden'); };
-    $('#ai-back').onclick = () => $('#aipage').classList.add('hidden');
+    $('#nav-ai').onclick = async () => {
+      if (openPane() === 'aipage') { showPane(null); return; }
+      if (!(await okToLeave())) return;
+      ed = null;
+      if (document.body.classList.contains('viewing')) closeViewer();
+      showPane('aipage');
+      renderRules();
+    };
+    $('#ai-close').onclick = () => showPane(null);
     $('#ai-test').onclick = async () => {
       $('#ai-result').textContent = 'অপেক্ষা করুন…';
       const r = await window.ar.aiTest(aiCfg());
@@ -329,19 +375,20 @@
   // ---------- শুরু ----------
   async function init() {
     S = await window.ar.getSettings();
-    $('#menu-btn').onclick = () => ($('#side').classList.contains('show') ? closeMenu() : openMenu());
-    $('#side-x').onclick = closeMenu;
-    $('#scrim').onclick = closeMenu;
-    $('#fab').onclick = () => openEditor(null);
-    $('#ed-back').onclick = backEditor;
+    $('#add-rule').onclick = () => openEditor(null);
+    $('#ed-cancel').onclick = cancelEditor;
+    $('#ed-close').onclick = cancelEditor;
     $('#ed-save').onclick = saveEditor;
-    $('#ed-more').onclick = () => $('#ed-menu').classList.toggle('hidden');
     $('#ed-del').onclick = deleteRule;
-    $('#vw-back').onclick = closeViewer;
+    $('#nav-rules').onclick = () => { if (document.body.classList.contains('viewing')) closeViewer(); };
     document.querySelectorAll('[data-open]').forEach((b) => { b.onclick = () => openViewer(b.dataset.open); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || document.querySelector('.dialog')) return;
+      if (openPane() === 'editor') cancelEditor(); else if (openPane() === 'aipage') showPane(null);
+    });
 
     $('#sw-enabled').checked = !!S.enabled;
-    $('#sw-enabled').onchange = (e) => save({ enabled: e.target.checked });
+    $('#sw-enabled').onchange = (e) => save({ enabled: e.target.checked }).then(renderMaster);
     AUTO_APPS.forEach((a) => {
       const c = $('#sw-' + a);
       c.checked = !!S.apps[a];
@@ -360,6 +407,7 @@
     $('#delay-max').oninput = dl;
 
     renderRules();
+    renderMaster();
     renderLog();
     initAi();
     AUTO_APPS.forEach((a) => { if (S.apps[a]) ensureView(a); });
