@@ -120,3 +120,6 @@ body.viewing #panel { display:none; }
 .foot { position:sticky; bottom:-14px; background:#0D1418; padding:8px 0 4px; display:flex; flex-direction:column; gap:8px; margin-top:auto; }
 .log { max-height:110px; }
 #side { gap:10px; }
+
+.dialog .vrow { border-top:1px solid var(--line); padding:10px 0; }
+.dialog .vrow:first-of-type { border-top:0; }

@@ -93,3 +93,11 @@ test('decide: একই চ্যাটে ঘণ্টায় ১০টির
   tick(3700000);
   assert.ok((await d.decide({ app: 'WhatsApp', isGroup: false, text: 'hi', conv: 'loop' })).reply);
 });
+
+test('decide: ভেরিয়েন্ট বন্ধ থাকলে (দল চালু থাকলেও) উত্তর যায় না', async () => {
+  const s = base();
+  s.variants = { wa: true, wab: false };
+  const { d } = mk(s);
+  assert.match((await d.decide({ app: 'WhatsApp', variant: 'wab', isGroup: false, text: 'hi', conv: 'b' })).reason, /ভেরিয়েন্ট বন্ধ/);
+  assert.strictEqual((await d.decide({ app: 'WhatsApp', variant: 'wa', isGroup: false, text: 'hi', conv: 'a' })).via, 'rule');
+});

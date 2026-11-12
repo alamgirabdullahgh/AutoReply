@@ -158,7 +158,7 @@ test('AI চ্যাট: সাইডবার থেকে ডান পাশ
 
 test('অ্যাপে চাপলে মাঝের অংশে ওয়েব খোলে, "নিয়ম"-এ চাপলে ফেরে', async () => {
   const { d } = await boot();
-  d.querySelector('[data-open="WhatsApp"]').click();
+  d.querySelector('[data-open="Telegram"]').click(); // এক ভেরিয়েন্টের দল: সরাসরি খোলে
   assert.ok(d.body.classList.contains('viewing'));
   assert.ok(d.querySelector('webview.view.active'));
   d.querySelector('#nav-rules').click();
@@ -187,4 +187,44 @@ test('আপডেট থাকলে "Update" বোতাম; চাপলে 
   assert.strictEqual(b.querySelector('.pct').textContent, 'Installing…');
   emit('fail', { err: 'HTTP 404' });
   assert.ok(!b.classList.contains('busy'));
+});
+
+test('সাইডবারে মোবাইলের মতো তিনটা দল: WhatsApp, Telegram, Facebook (Facebook-এ সুইচ নেই)', async () => {
+  const { d } = await boot();
+  const names = Array.from(d.querySelectorAll('#apps .app b')).map((b) => b.textContent);
+  assert.deepStrictEqual(names, ['WhatsApp', 'Telegram', 'Facebook']);
+  assert.ok(d.querySelector('#sw-WhatsApp'));
+  assert.ok(d.querySelector('#sw-Telegram'));
+  assert.strictEqual(d.querySelector('#sw-Facebook'), null);
+  assert.match(d.querySelector('#st-Facebook').textContent, /Messenger, Meta Business Suite/);
+});
+
+test('WhatsApp-এ চাপলে তার সব ভেরিয়েন্ট আলাদা সুইচসহ দেখায়; সুইচ বদলালে variants সংরক্ষণ হয়', async () => {
+  const { d, calls } = await boot();
+  d.querySelector('[data-open="WhatsApp"]').click();
+  await tick();
+  const labels = Array.from(d.querySelectorAll('.dialog .vrow b')).map((b) => b.textContent);
+  assert.deepStrictEqual(labels, ['WhatsApp', 'WhatsApp Business']);
+  const cb = d.querySelector('.dialog input[data-variant="wab"]');
+  assert.strictEqual(cb.checked, false);
+  cb.checked = true; cb.dispatchEvent(new d.defaultView.Event('change'));
+  await tick();
+  assert.strictEqual(JSON.stringify(calls.saved.at(-1)), JSON.stringify({ variants: { wab: true } }));
+});
+
+test('Facebook-এ চাপলে Messenger ও Meta Business Suite দেখায়, কোনো সুইচ নয়, শুধু খুলুন', async () => {
+  const { d } = await boot();
+  d.querySelector('[data-open="Facebook"]').click();
+  await tick();
+  const labels = Array.from(d.querySelectorAll('.dialog .vrow b')).map((b) => b.textContent);
+  assert.deepStrictEqual(labels, ['Messenger', 'Meta Business Suite']);
+  assert.strictEqual(d.querySelectorAll('.dialog input[type=checkbox]').length, 0);
+});
+
+test('দলের সুইচ বদলালে apps সংরক্ষণ হয়', async () => {
+  const { d, calls } = await boot();
+  const cb = d.querySelector('#sw-Telegram');
+  cb.checked = false; cb.dispatchEvent(new d.defaultView.Event('change'));
+  await tick();
+  assert.strictEqual(JSON.stringify(calls.saved.at(-1)), JSON.stringify({ apps: { Telegram: false } }));
 });
