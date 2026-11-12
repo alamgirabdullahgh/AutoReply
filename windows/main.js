@@ -4,6 +4,9 @@ const path = require('path');
 const { createStore } = require('./store');
 const { createAi } = require('./ai');
 const { createDecider } = require('./decide');
+const updater = require('./updater');
+const { spawn } = require('child_process');
+const fs = require('fs');
 
 // ওয়েব অ্যাপগুলো যেন ইংরেজি ইন্টারফেসে খোলে (অপঠিত চিহ্ন চেনার জন্য); মেসেজ বাংলায় লেখা/পড়া স্বাভাবিকই চলে
 app.commandLine.appendSwitch('lang', 'en-US');
@@ -69,6 +72,13 @@ async function typeText(wcId, text) {
   }
 }
 
+// নীরব স্বয়ংক্রিয় আপডেটের পর অ্যাপ আবার চালু হলে জানালা না খুলে ট্রে-তে থাকে (ইনস্টলার নিজের আর্গুমেন্ট দিয়ে চালু করে, তাই চিহ্ন-ফাইল দিয়ে জানানো)
+function hideMarker() { return path.join(app.getPath('userData'), 'start-hidden'); }
+function consumeHideMarker() {
+  try { if (fs.existsSync(hideMarker())) { fs.unlinkSync(hideMarker()); return true; } } catch (e) { /* ignore */ }
+  return false;
+}
+
 function boot() {
   const store = createStore({ dir: app.getPath('userData'), safe: safeStorage });
   const ai = createAi();
@@ -97,7 +107,7 @@ function boot() {
     height: 780,
     minWidth: 900,
     minHeight: 600,
-    show: !process.argv.includes('--hidden'),
+    show: !(process.argv.includes('--hidden') || consumeHideMarker()),
     autoHideMenuBar: true,
     title: 'AutoReply',
     icon: path.join(__dirname, 'build', 'icon.png'),
@@ -156,6 +166,63 @@ function boot() {
     const r = await ai.test(cfg, 'আপনারা কী কী সেবা দেন?');
     return r;
   });
+
+  // ---------- আপডেট (Android অ্যাপের মতো) ----------
+  let latest = null;      // শেষবার জানা নতুন সংস্করণ { n, version, url }
+  let updBusy = false;
+  const autoTries = {};   // সংস্করণ -> নীরব চেষ্টা কতবার
+  const sendUpd = (ch, payload) => { try { if (win && !win.isDestroyed()) win.webContents.send(ch, payload); } catch (e) { /* ignore */ } };
+
+  async function checkUpdate() {
+    try {
+      const i = await updater.checkLatest();
+      latest = updater.isNewer(i, app.getVersion()) ? i : null;
+    } catch (e) { /* নেটওয়ার্ক না থাকলে আগের অবস্থাই থাকে */ }
+    sendUpd('update:state', { cur: app.getVersion(), latest });
+    return { cur: app.getVersion(), latest };
+  }
+
+  async function installUpdate(auto) {
+    if (updBusy || !latest) return { ok: false, err: 'নতুন সংস্করণ নেই' };
+    if (!app.isPackaged) return { ok: false, err: 'ইনস্টল করা অ্যাপে ছাড়া আপডেট চলে না' };
+    updBusy = true;
+    const info = latest;
+    try {
+      const file = updater.tmpInstallerPath(info.version);
+      await updater.download(info.url, file, (pct) => sendUpd('update:progress', { pct }));
+      sendUpd('update:progress', { pct: 100, installing: true });
+      // নীরব ইনস্টল; --force-run: শেষে অ্যাপ নিজে আবার চালু হয় (ট্রে-তে থাকলে ট্রে-তেই, জানালা খোলা থাকলে জানালা সহ)
+      const args = ['/S', '--force-run'];
+      if (auto) { try { fs.writeFileSync(hideMarker(), '1'); } catch (e) { /* ignore */ } }
+      const child = spawn(file, args, { detached: true, stdio: 'ignore' });
+      child.unref();
+      quitting = true;
+      setTimeout(() => app.quit(), 800);
+      return { ok: true };
+    } catch (e) {
+      updBusy = false;
+      sendUpd('update:fail', { err: String(e && e.message || e) });
+      return { ok: false, err: String(e && e.message || e) };
+    }
+  }
+
+  // জানালা লুকানো (ট্রে-তে) থাকলে নতুন সংস্করণ নিজেই নামিয়ে ইনস্টল হয়; জানালা খোলা থাকলে শুধু "Update" বোতাম দেখায়
+  async function backgroundCheck() {
+    const r = await checkUpdate();
+    if (!r.latest || updBusy) return;
+    const hidden = !win || !win.isVisible();
+    const t = autoTries[r.latest.version] || 0;
+    if (hidden && t < 3) {
+      autoTries[r.latest.version] = t + 1;
+      installUpdate(true);
+    }
+  }
+
+  ipcMain.handle('update:state', () => ({ cur: app.getVersion(), latest }));
+  ipcMain.handle('update:check', () => checkUpdate());
+  ipcMain.handle('update:install', () => installUpdate(false));
+  setTimeout(backgroundCheck, 15 * 1000);
+  setInterval(backgroundCheck, 6 * 60 * 60 * 1000);
 
   app.on('before-quit', () => { quitting = true; });
 }

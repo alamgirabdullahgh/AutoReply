@@ -28,6 +28,7 @@
       "ai.js",
       "decide.js",
       "store.js",
+      "updater.js",
       "renderer/**/*",
       "build/icon.png",
       "package.json"
