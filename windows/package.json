@@ -1,0 +1,59 @@
+{
+  "name": "autoreply-windows",
+  "productName": "AutoReply",
+  "version": "1.0.0",
+  "description": "AutoReply for Windows: WhatsApp Web / Telegram Web auto reply with rules and optional AI",
+  "main": "main.js",
+  "author": "Rah Care",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"test/*.test.js\"",
+    "dist": "electron-builder --win nsis --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "^45.3.1",
+    "electron-builder": "^26.18.0",
+    "jsdom": "^31.0.0"
+  },
+  "build": {
+    "appId": "com.rahcare.autoreply.windows",
+    "productName": "AutoReply",
+    "files": [
+      "main.js",
+      "preload.js",
+      "adapter.js",
+      "engine.js",
+      "ai.js",
+      "decide.js",
+      "store.js",
+      "renderer/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AutoReply",
+      "artifactName": "AutoReply-Setup-${version}.exe"
+    }
+  }
+}

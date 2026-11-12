@@ -1,0 +1,55 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'windows/**'
+      - '.github/workflows/windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: windows/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Set version
+        shell: bash
+        run: npm pkg set version=1.0.${{ github.run_number }}
+
+      - name: Build installer
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder --win nsis --x64 --publish never
+
+      - name: Publish installer to a GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER=1.0.${{ github.run_number }}
+          # --latest=false: Android অ্যাপের আপডেট-পরীক্ষা "latest release" দেখে, তাই Windows রিলিজ যেন সেটা দখল না করে
+          gh release create "windows-v$VER" "dist/AutoReply-Setup-$VER.exe" \
+            --title "AutoReply for Windows v$VER" \
+            --notes "AutoReply-Setup-$VER.exe ডাউনলোড করে ডাবল ক্লিক করুন। Windows SmartScreen সতর্ক করলে More info, তারপর Run anyway চাপুন।" \
+            --latest=false

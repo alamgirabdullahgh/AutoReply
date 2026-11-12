@@ -11,3 +11,6 @@ build.log
 
 # GitHub App credentials
 gha-creds-*.json
+
+# Windows অ্যাপের আইকন ফোল্ডার (ওপরের build/ নিয়মের ব্যতিক্রম)
+!windows/build/
