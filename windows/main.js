@@ -11,7 +11,7 @@ const fs = require('fs');
 // ওয়েব অ্যাপগুলো যেন ইংরেজি ইন্টারফেসে খোলে (অপঠিত চিহ্ন চেনার জন্য); মেসেজ বাংলায় লেখা/পড়া স্বাভাবিকই চলে
 app.commandLine.appendSwitch('lang', 'en-US');
 
-const PARTITIONS = ['persist:whatsapp', 'persist:telegram', 'persist:messenger'];
+const PARTITIONS = ['persist:whatsapp', 'persist:whatsapp-business', 'persist:telegram', 'persist:messenger', 'persist:fb-business'];
 const ALLOWED_HOST = /^https:\/\/([\w-]+\.)*(whatsapp\.com|whatsapp\.net|telegram\.org|messenger\.com|facebook\.com|fbcdn\.net)(\/|$)/;
 
 let win = null;

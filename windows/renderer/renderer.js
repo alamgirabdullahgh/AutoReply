@@ -1,9 +1,24 @@
 'use strict';
 (function () {
   const $ = (s) => document.querySelector(s);
-  const URLS = { WhatsApp: 'https://web.whatsapp.com/', Telegram: 'https://web.telegram.org/a/', Messenger: 'https://www.messenger.com/' };
-  const PART = { WhatsApp: 'persist:whatsapp', Telegram: 'persist:telegram', Messenger: 'persist:messenger' };
-  const AUTO_APPS = ['WhatsApp', 'Telegram'];
+  // মোবাইলের মতো তিনটা দল: প্রতিটার মূল সুইচ, আর ভেতরে প্রতিটা ভেরিয়েন্টের আলাদা সুইচ (কার্যকর = দল চালু এবং ভেরিয়েন্ট চালু)
+  // auto: স্বয়ংক্রিয় উত্তর চালানো যায় কিনা। Facebook-এর ওয়েব পাতার জন্য এখনো স্বয়ংক্রিয় উত্তরের অংশ নেই, তাই শুধু দেখা যায়।
+  const WA = 'https://web.whatsapp.com/';
+  const GROUPS = [
+    { name: 'WhatsApp', auto: true, variants: [
+      { id: 'wa', label: 'WhatsApp', url: WA, part: 'persist:whatsapp' },
+      { id: 'wab', label: 'WhatsApp Business', url: WA, part: 'persist:whatsapp-business' }
+    ] },
+    { name: 'Telegram', auto: true, variants: [
+      { id: 'tg', label: 'Telegram', url: 'https://web.telegram.org/a/', part: 'persist:telegram' }
+    ] },
+    { name: 'Facebook', auto: false, variants: [
+      { id: 'fbm', label: 'Messenger', url: 'https://www.facebook.com/messages/', part: 'persist:messenger' },
+      { id: 'fbb', label: 'Meta Business Suite', url: 'https://business.facebook.com/latest/inbox/all', part: 'persist:fb-business' }
+    ] }
+  ];
+  const VAR = {};
+  GROUPS.forEach((g) => g.variants.forEach((v) => { v.group = g.name; v.auto = g.auto; VAR[v.id] = v; }));
   // মোবাইল অ্যাপের হুবহু মিলের ধরন ও ব্যাখ্যা
   const MODES = [
     [1, 'Exact match', 'পুরো মেসেজটা আপনার লেখা মেসেজগুলোর কোনো একটার সাথে হুবহু এক হতে হবে। বড়-ছোট হাতের অক্ষর, বাড়তি ফাঁকা এবং চিহ্ন (! ? । .) ধরা হয় না।\n\nউদাহরণ: "assalamu alaikum" লিখলে "Assalamu Alaikum!" মিলবে, কিন্তু "করিম রহিমকে assalamu alaikum বলেছে" মিলবে না।'],
@@ -85,10 +100,10 @@
     if (views[app]) return;
     const wv = document.createElement('webview');
     wv.className = 'view';
-    wv.setAttribute('partition', PART[app]);
-    wv.setAttribute('src', URLS[app]);
+    wv.setAttribute('partition', VAR[app].part);
+    wv.setAttribute('src', VAR[app].url);
     wv.addEventListener('ipc-message', (e) => {
-      if (e.channel === 'ar' && e.args && e.args[0]) onAdapter(app, wv, e.args[0]).catch((x) => addLog(app, 'ত্রুটি: ' + (x && x.message || x)));
+      if (e.channel === 'ar' && e.args && e.args[0]) onAdapter(app, wv, e.args[0]).catch((x) => addLog(VAR[app].label, 'ত্রুটি: ' + (x && x.message || x)));
     });
     $('#views').appendChild(wv);
     views[app] = wv;
@@ -104,7 +119,7 @@
     ensureView(app);
     Object.keys(views).forEach((k) => views[k].classList.toggle('active', k === app));
     document.body.classList.add('viewing');
-    document.querySelectorAll('.app').forEach((b) => b.classList.toggle('active', b.dataset.open === app));
+    document.querySelectorAll('.app').forEach((b) => b.classList.toggle('active', b.dataset.open === VAR[app].group));
     $('#nav-rules').classList.remove('active');
     $('#nav-ai').classList.remove('active');
   }
@@ -115,8 +130,7 @@
     $('#nav-rules').classList.add('active');
     $('#nav-ai').classList.toggle('active', openPane() === 'aipage');
     // অটো-রিপ্লের অ্যাপ বন্ধ থাকলে ট্যাবটা আবার বাদ
-    AUTO_APPS.forEach((a) => { if (!S.apps[a]) dropView(a); });
-    if (views.Messenger) dropView('Messenger');
+    Object.keys(VAR).forEach((id) => { if (!varEnabled(VAR[id])) dropView(id); });
   }
 
   function randDelay() {
@@ -125,18 +139,20 @@
     return (a + Math.random() * (b - a)) * 1000;
   }
 
-  async function onAdapter(app, wv, m) {
-    if (m.t === 'status') { status[app] = m.s; renderStatus(); return; }
-    if (m.t === 'info') { addLog(app, m.s); return; }
-    if (m.t === 'result') { addLog(app, m.ok ? 'মেসেজ গিয়েছে' : 'পাঠাতে ব্যর্থ: ' + m.reason); return; }
+  async function onAdapter(id, wv, m) {
+    const V = VAR[id];
+    const lbl = V.label;
+    if (m.t === 'status') { status[id] = m.s; renderStatus(); return; }
+    if (m.t === 'info') { addLog(lbl, m.s); return; }
+    if (m.t === 'result') { addLog(lbl, m.ok ? 'মেসেজ গিয়েছে' : 'পাঠাতে ব্যর্থ: ' + m.reason); return; }
     if (m.t === 'msg') {
-      const d = await window.ar.decide({ app, isGroup: !!m.isGroup, text: m.text, conv: app + '|' + m.chat });
+      const d = await window.ar.decide({ app: V.group, variant: id, isGroup: !!m.isGroup, text: m.text, conv: id + '|' + m.chat });
       if (d.reply) {
-        addLog(app, 'উত্তর তৈরি (' + (d.via === 'ai' ? 'AI' : 'নিয়ম') + '), পাঠানো হচ্ছে…');
+        addLog(lbl, 'উত্তর তৈরি (' + (d.via === 'ai' ? 'AI' : 'নিয়ম') + '), পাঠানো হচ্ছে…');
         await sleep(randDelay());
         wv.send('ar-cmd', { t: 'reply', text: d.reply });
       } else {
-        addLog(app, d.reason);
+        addLog(lbl, d.reason);
         wv.send('ar-cmd', { t: 'skip' });
       }
       return;
@@ -147,11 +163,93 @@
     }
   }
 
-  function renderStatus() {
-    AUTO_APPS.forEach((a) => {
-      const s = status[a] || 'বন্ধ';
-      $('#st-' + a).textContent = s === 'চালু' ? '✔ সংযুক্ত — মেসেজের অপেক্ষায়' : (views[a] ? s + ' — লগইন করুন' : 'বন্ধ');
+  // কার্যকর = দলের সুইচ চালু এবং ভেরিয়েন্টের সুইচ চালু (মোবাইলের instOn-এর মতো)
+  function varEnabled(v) { return !!(v.auto && S.apps[v.group] && S.variants && S.variants[v.id]); }
+  function syncViews() {
+    Object.keys(VAR).forEach((id) => {
+      if (varEnabled(VAR[id])) { ensureView(id); return; }
+      const beingViewed = views[id] && views[id].classList.contains('active');
+      if (!beingViewed) dropView(id);
     });
+  }
+
+  function renderStatus() {
+    GROUPS.forEach((g) => {
+      const e = $('#st-' + g.name);
+      if (!e) return;
+      if (!g.auto) { e.textContent = 'শুধু দেখার জন্য — ' + g.variants.map((v) => v.label).join(', '); return; }
+      const on = g.variants.filter((v) => varEnabled(v));
+      if (!S.apps[g.name] || !on.length) { e.textContent = 'বন্ধ'; return; }
+      const ok = on.filter((v) => status[v.id] === 'চালু').length;
+      e.textContent = ok ? '✔ সংযুক্ত — মেসেজের অপেক্ষায়' + (on.length > 1 ? ' (' + ok + '/' + on.length + ')' : '') : 'লগইন করুন';
+    });
+  }
+
+  // সাইডবারের "কোন অ্যাপে চলবে" তালিকা
+  function buildApps() {
+    const box = $('#apps');
+    box.textContent = '';
+    GROUPS.forEach((g) => {
+      const cell = el('div', 'cell');
+      const b = el('button', 'app');
+      b.dataset.open = g.name;
+      b.appendChild(el('b', '', g.name));
+      const sub = el('span', 'sub', 'বন্ধ');
+      sub.id = 'st-' + g.name;
+      b.appendChild(sub);
+      b.onclick = () => { if (g.variants.length > 1) variantsDialog(g); else openViewer(g.variants[0].id); };
+      cell.appendChild(b);
+      if (g.auto) {
+        const sw = el('label', 'pill');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.id = 'sw-' + g.name;
+        cb.checked = !!S.apps[g.name];
+        cb.onchange = async () => { await save({ apps: { [g.name]: cb.checked } }); syncViews(); renderStatus(); };
+        sw.appendChild(cb);
+        sw.appendChild(document.createElement('span'));
+        cell.appendChild(sw);
+      }
+      box.appendChild(cell);
+    });
+  }
+
+  // দলের নামে চাপলে খোলে: ওই দলের প্রতিটি ভেরিয়েন্ট, পাশে আলাদা সুইচ ও "খুলুন" (মোবাইলের variantsDialog-এর মতো)
+  function variantsDialog(g) {
+    const d = el('div', 'dialog');
+    const box = el('div', 'box');
+    box.appendChild(el('h4', '', g.name));
+    box.appendChild(el('p', '', g.auto
+      ? 'প্রতিটার আলাদা সুইচ। দল ও ভেরিয়েন্ট দুটোই চালু থাকলে তবেই উত্তর যায়। প্রথমবার "খুলুন" চেপে লগইন করুন।'
+      : 'এগুলো এখানে খুলে দেখা যায়। Facebook-এর ওয়েবে স্বয়ংক্রিয় উত্তর এখনো যোগ হয়নি।'));
+    g.variants.forEach((v) => {
+      const row = el('div', 'cell vrow');
+      const info = el('div', 'grow');
+      info.appendChild(el('b', '', v.label));
+      row.appendChild(info);
+      const open = el('button', 'ghost', 'খুলুন');
+      open.onclick = () => { d.remove(); openViewer(v.id); };
+      row.appendChild(open);
+      if (g.auto) {
+        const sw = el('label', 'pill');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.dataset.variant = v.id;
+        cb.checked = !!(S.variants && S.variants[v.id]);
+        cb.onchange = async () => { await save({ variants: { [v.id]: cb.checked } }); syncViews(); renderStatus(); };
+        sw.appendChild(cb);
+        sw.appendChild(document.createElement('span'));
+        row.appendChild(sw);
+      }
+      box.appendChild(row);
+    });
+    const bs = el('div', 'btns');
+    const close = el('button', 'ghost', 'বন্ধ');
+    close.onclick = () => d.remove();
+    bs.appendChild(close);
+    box.appendChild(bs);
+    d.appendChild(box);
+    $('#app').appendChild(d);
   }
 
   // ---------- নিয়মের তালিকা ----------
@@ -381,7 +479,7 @@
     $('#ed-save').onclick = saveEditor;
     $('#ed-del').onclick = deleteRule;
     $('#nav-rules').onclick = () => { if (document.body.classList.contains('viewing')) closeViewer(); };
-    document.querySelectorAll('[data-open]').forEach((b) => { b.onclick = () => openViewer(b.dataset.open); });
+    buildApps();
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape' || document.querySelector('.dialog')) return;
       if (openPane() === 'editor') cancelEditor(); else if (openPane() === 'aipage') showPane(null);
@@ -389,15 +487,6 @@
 
     $('#sw-enabled').checked = !!S.enabled;
     $('#sw-enabled').onchange = (e) => save({ enabled: e.target.checked }).then(renderMaster);
-    AUTO_APPS.forEach((a) => {
-      const c = $('#sw-' + a);
-      c.checked = !!S.apps[a];
-      c.onchange = async (e) => {
-        await save({ apps: { [a]: e.target.checked } });
-        if (e.target.checked) ensureView(a); else dropView(a);
-        renderStatus();
-      };
-    });
     $('#sw-autostart').checked = !!S.autostart;
     $('#sw-autostart').onchange = (e) => save({ autostart: e.target.checked });
     $('#delay-min').value = S.delayMin;
@@ -410,7 +499,7 @@
     renderMaster();
     renderLog();
     initAi();
-    AUTO_APPS.forEach((a) => { if (S.apps[a]) ensureView(a); });
+    syncViews();
     renderStatus();
 
     $('#update-btn').onclick = startUpdate;

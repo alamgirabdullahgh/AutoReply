@@ -30,6 +30,7 @@ function createDecider(deps) {
     const text = String(p.text || '');
     if (!s.enabled) return { reply: null, reason: 'মূল সুইচ বন্ধ' };
     if (!s.apps || !s.apps[app]) return { reply: null, reason: 'এই অ্যাপ বন্ধ করা আছে' };
+    if (p.variant && s.variants && s.variants[p.variant] === false) return { reply: null, reason: 'এই ভেরিয়েন্ট বন্ধ করা আছে' };
     if (!text.trim()) return { reply: null, reason: 'মেসেজে লেখা নেই' };
     if (recent(p.conv).length >= MAX_REPLIES_PER_CONV_HOUR) {
       return { reply: null, reason: 'এই চ্যাটে ঘণ্টায় ' + MAX_REPLIES_PER_CONV_HOUR + 'টার বেশি উত্তর যায় না (চক্র ঠেকাতে), তাই বাদ' };

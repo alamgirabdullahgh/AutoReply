@@ -8,6 +8,7 @@ function defaults() {
   return {
     enabled: true,
     apps: { WhatsApp: true, Telegram: true },
+    variants: { wa: true, wab: false, tg: true }, // দলের ভেতরে প্রতিটা ভেরিয়েন্টের সুইচ (WhatsApp Business আলাদা লগইন, তাই ডিফল্টে বন্ধ)
     rules: defaultRules(),
     ai: { on: false, prov: 'auto', key: '', model: '', base: '', info: '', cmd: '' },
     autostart: false,
@@ -32,6 +33,7 @@ function createStore(opts) {
     if (raw && typeof raw === 'object') {
       if (typeof raw.enabled === 'boolean') d.enabled = raw.enabled;
       if (raw.apps && typeof raw.apps === 'object') d.apps = Object.assign(d.apps, raw.apps);
+      if (raw.variants && typeof raw.variants === 'object') d.variants = Object.assign(d.variants, raw.variants);
       if (Array.isArray(raw.rules)) d.rules = raw.rules;
       if (raw.ai && typeof raw.ai === 'object') {
         d.ai = Object.assign(d.ai, raw.ai);
@@ -67,6 +69,7 @@ function createStore(opts) {
     const p = patch || {};
     if (typeof p.enabled === 'boolean') cur.enabled = p.enabled;
     if (p.apps && typeof p.apps === 'object') cur.apps = Object.assign({}, cur.apps, p.apps);
+    if (p.variants && typeof p.variants === 'object') cur.variants = Object.assign({}, cur.variants, p.variants);
     if (Array.isArray(p.rules)) cur.rules = p.rules;
     if (p.ai && typeof p.ai === 'object') cur.ai = Object.assign({}, cur.ai, p.ai);
     if (typeof p.autostart === 'boolean') cur.autostart = p.autostart;
