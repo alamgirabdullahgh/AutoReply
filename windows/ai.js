@@ -10,9 +10,16 @@ const MAX_INFO = 12000;
 const MAX_ANSWER = 1500;
 const GEMINI_CHAIN = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
+// পেস্ট করা চাবির বাড়তি অংশ (ফাঁকা জায়গা, নতুন লাইন, অদৃশ্য অক্ষর, কোটেশন, \"Bearer \") বাদ দেয়
+function cleanKey(key) {
+  let k = String(key || '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+  k = k.replace(/^bearer\s+/i, '').trim().replace(/^["'`]+|["'`]+$/g, '').trim();
+  return k.replace(/\s+/g, '');
+}
+
 // শুধু চাবির শুরুর অংশ দেখে চেনা হয় (চাবি কোথাও যাচাই করতে পাঠানো হয় না)
 function detect(key) {
-  const k = String(key || '').trim();
+  const k = cleanKey(key);
   if (!k) return null;
   if (k.startsWith('AQ.') || k.startsWith('AIza')) return { id: 'gemini', label: 'Gemini', base: '', model: DEF_GEMINI_MODEL };
   if (k.startsWith('sk-ant-')) return { id: 'claude', label: 'Claude', base: '', model: DEF_CLAUDE_MODEL };
@@ -43,7 +50,7 @@ function eff(g) {
 function configured(g) {
   const e = eff(g);
   if (!e) return false;
-  return !!(g.key && g.key.trim()) && !!((g.info && g.info.trim()) || (g.cmd && g.cmd.trim())) && (e.id !== 'openai' || !!e.model);
+  return !!cleanKey(g.key) && !!((g.info && g.info.trim()) || (g.cmd && g.cmd.trim())) && (e.id !== 'openai' || !!e.model);
 }
 
 function system(info, cmd) {
@@ -196,8 +203,9 @@ function createAi(opts) {
   }
 
   // { text, error }
-  async function ask(g, h, q) {
-    if (!g.key || !g.key.trim()) return { text: null, error: 'API কী দেওয়া হয়নি' };
+  async function ask(g0, h, q) {
+    const g = Object.assign({}, g0, { key: cleanKey(g0 && g0.key) });
+    if (!g.key) return { text: null, error: 'API কী দেওয়া হয়নি' };
     const e = eff(g);
     if (!e) return { text: null, error: 'চাবির ধরন চেনা যায়নি; "উন্নত" অংশ থেকে প্রোভাইডার বেছে নিন' };
     if (!configured(g)) {
@@ -230,4 +238,4 @@ function createAi(opts) {
   return { answer, test, configured, detect, eff };
 }
 
-module.exports = { createAi, detect, eff, configured, system, MAX_PER_HOUR, GEMINI_CHAIN };
+module.exports = { createAi, cleanKey, detect, eff, configured, system, MAX_PER_HOUR, GEMINI_CHAIN };

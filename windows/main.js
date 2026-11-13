@@ -238,7 +238,7 @@ function boot() {
   ipcMain.handle('update:check', () => checkUpdate());
   ipcMain.handle('update:install', () => installUpdate(false));
   setTimeout(backgroundCheck, 15 * 1000);
-  setInterval(backgroundCheck, 6 * 60 * 60 * 1000);
+  setInterval(backgroundCheck, 60 * 1000);   // প্রতি মিনিটে নতুন সংস্করণ খোঁজে
 
   app.on('before-quit', () => { quitting = true; });
 }
