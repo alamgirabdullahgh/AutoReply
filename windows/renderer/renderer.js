@@ -157,6 +157,10 @@
       }
       return;
     }
+    if (m.t === 'click') {
+      await window.ar.click(wv.getWebContentsId(), m.x, m.y);
+      return;
+    }
     if (m.t === 'type') {
       const r = await window.ar.type(wv.getWebContentsId(), m.text);
       wv.send('ar-cmd', r.ok ? { t: 'typed' } : { t: 'typed', err: r.err });

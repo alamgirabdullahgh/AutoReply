@@ -72,6 +72,24 @@ async function typeText(wcId, text) {
   }
 }
 
+// আসল মাউস-ক্লিক (CDP): কৃত্রিম ক্লিকে WhatsApp চ্যাট না খুললে ব্যবহার হয়; জানালায় ফোকাস না থাকলেও চলে
+async function clickAt(wcId, x, y) {
+  const wc = webContents.fromId(wcId);
+  if (!wc) throw new Error('ট্যাব পাওয়া যায়নি');
+  const attachedHere = !wc.debugger.isAttached();
+  if (attachedHere) wc.debugger.attach('1.3');
+  const send = (m, p) => wc.debugger.sendCommand(m, p);
+  try {
+    await send('Emulation.setFocusEmulationEnabled', { enabled: true });
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1 });
+  } finally {
+    try { await send('Emulation.setFocusEmulationEnabled', { enabled: false }); } catch (e) { /* ignore */ }
+    if (attachedHere) { try { wc.debugger.detach(); } catch (e) { /* ignore */ } }
+  }
+}
+
 // নীরব স্বয়ংক্রিয় আপডেটের পর অ্যাপ আবার চালু হলে জানালা না খুলে ট্রে-তে থাকে (ইনস্টলার নিজের আর্গুমেন্ট দিয়ে চালু করে, তাই চিহ্ন-ফাইল দিয়ে জানানো)
 function hideMarker() { return path.join(app.getPath('userData'), 'start-hidden'); }
 function consumeHideMarker() {
@@ -177,6 +195,9 @@ function boot() {
   ipcMain.handle('decide', (_e, p) => decider.decide(p));
   ipcMain.handle('type', async (_e, p) => {
     try { await typeText(p.id, p.text); return { ok: true }; } catch (x) { return { ok: false, err: String(x && x.message || x) }; }
+  });
+  ipcMain.handle('click', async (_e, p) => {
+    try { await clickAt(p.id, Number(p.x) || 0, Number(p.y) || 0); return { ok: true }; } catch (x) { return { ok: false, err: String(x && x.message || x) }; }
   });
   ipcMain.handle('ai:test', async (_e, cfg, q) => {
     const r = await ai.test(cfg, String(q || '').trim() || 'আপনারা কী কী সেবা দেন?');
