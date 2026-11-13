@@ -119,7 +119,23 @@ function boot() {
       backgroundThrottling: false
     }
   });
-  win.setMenu(null);
+  // মেনু পুরো null করলে Ctrl+C/V/X/A কাজ করে না (পেস্ট আটকে যায়); তাই লুকানো একটা Edit মেনু রাখা হয়
+  win.setMenu(Menu.buildFromTemplate([
+    { label: 'Edit', submenu: [
+      { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
+      { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }
+    ] }
+  ]));
+  win.setMenuBarVisibility(false);
+  // ডান-ক্লিকে কাট/কপি/পেস্ট (অ্যাপের ফিল্ড ও ভেতরের ওয়েব ট্যাব দুই জায়গাতেই)
+  const attachCtx = (wc) => wc.on('context-menu', (e, params) => {
+    const items = [];
+    if (params.isEditable) items.push({ role: 'cut', enabled: params.editFlags.canCut }, { role: 'copy', enabled: params.editFlags.canCopy }, { role: 'paste', enabled: params.editFlags.canPaste }, { type: 'separator' }, { role: 'selectAll' });
+    else if (params.selectionText) items.push({ role: 'copy' });
+    if (items.length) Menu.buildFromTemplate(items).popup({ window: win });
+  });
+  attachCtx(win.webContents);
+  win.webContents.on('did-attach-webview', (e, wc) => attachCtx(wc));
 
   // ভেতরের ওয়েব ট্যাবগুলোতে নিজের স্ক্রিপ্ট বসানো; অন্য ঠিকানা খুলতে দেওয়া হয় না
   win.webContents.on('will-attach-webview', (e, webPreferences, params) => {
