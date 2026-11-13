@@ -36,6 +36,10 @@ function sameKey(a, b) {
 }
 
 // ---------------- WhatsApp Web ----------------
+// খোলা চ্যাটের প্যানেল: আগে #main; না পেলে চ্যাট-প্যানেলের বিকল্প
+function waRoot(d) {
+  return d.querySelector('#main') || d.querySelector('[data-testid="conversation-panel-wrapper"]') || d.querySelector('div[role="application"]');
+}
 const whatsapp = {
   app: 'WhatsApp',
   loggedIn: (d) => !!d.querySelector('#pane-side'),
@@ -64,12 +68,36 @@ const whatsapp = {
       const v = e ? (e.getAttribute('title') || txt(e)).trim() : '';
       if (v) return v;
     }
+    // ফলব্যাক: #main না থাকলেও চ্যাট প্যানেলের হেডারের প্রথম লেখা
+    const root = waRoot(d);
+    const h = root && root.querySelector('header');
+    if (h) {
+      const t = h.querySelector('[title]');
+      const tv = t ? (t.getAttribute('title') || '').trim() : '';
+      if (tv) return tv;
+      const line = String(h.innerText || h.textContent || '').split('\n').map((x) => x.trim()).filter(Boolean)[0];
+      if (line) return line;
+    }
     return '';
   },
+  // তালিকায় যে চ্যাটটা এখন নির্বাচিত (হেডারের নাম না পড়া গেলে এটা দিয়ে চেনা হয়)
+  selectedKey: (d) => {
+    const r = whatsapp.rows(d).find((x) => x.getAttribute('aria-selected') === 'true' || x.querySelector('[aria-selected="true"]'));
+    return r ? whatsapp.rowKey(r) : '';
+  },
+  diag: (d) => 'main:' + (d.querySelector('#main') ? 'আছে' : 'নেই') + ' হেডার:' + ((waRoot(d) && waRoot(d).querySelector('header')) ? 'আছে' : 'নেই') +
+    ' মেসেজ:' + d.querySelectorAll('[data-id]').length,
   lastMessage: (d) => {
     let els = Array.from(d.querySelectorAll('#main div[data-id]')).filter((e) => /^(true|false)_/.test(e.getAttribute('data-id')));
     // ফলব্যাক: WhatsApp Web-এর ভেতরের গঠন বদলালে message-in/out ক্লাস দিয়ে ধরা
     if (!els.length) els = Array.from(d.querySelectorAll('#main .message-in, #main .message-out'));
+    if (!els.length) {
+      const root = waRoot(d);
+      if (root) {
+        els = Array.from(root.querySelectorAll('div[data-id]')).filter((e) => /^(true|false)_/.test(e.getAttribute('data-id')));
+        if (!els.length) els = Array.from(root.querySelectorAll('.message-in, .message-out'));
+      }
+    }
     const e = els[els.length - 1];
     if (!e) return null;
     const inner = e.getAttribute('data-id') ? e : e.querySelector('[data-id]');
@@ -90,7 +118,8 @@ const whatsapp = {
     return { id, own, text, isGroup: /@g\.us/.test(id), skip };
   },
   input: (d) => {
-    const l = Array.from(d.querySelectorAll('#main footer div[contenteditable="true"]'));
+    let l = Array.from(d.querySelectorAll('#main footer div[contenteditable="true"]'));
+    if (!l.length) { const root = waRoot(d); if (root) l = Array.from(root.querySelectorAll('footer div[contenteditable="true"]')); }
     return l.length ? l[l.length - 1] : null;
   }
 };
@@ -157,6 +186,8 @@ function createCore(site, ipcr, doc) {
   const send = (o) => ipcr.sendToHost('ar', Object.assign({ app: APP }, o));
   const status = (s) => { if (s !== lastStatus) { lastStatus = s; send({ t: 'status', s }); } };
   const finish = () => { pending = null; busy = false; };
+  // খোলা চ্যাটের নাম: হেডার থেকে; না পড়া গেলে তালিকায় নির্বাচিত চ্যাট থেকে
+  const curKey = () => site.openKey(doc) || (site.selectedKey ? site.selectedKey(doc) : '');
 
   function handle(key, m) {
     if (m.skip) { send({ t: 'info', s: m.skip }); return; }
@@ -176,8 +207,8 @@ function createCore(site, ipcr, doc) {
       let cur = '';
       let m = null;
       const t0 = Date.now();
-      while (Date.now() - t0 < 5000) {
-        cur = site.openKey(doc);
+      while (Date.now() - t0 < 15000) {
+        cur = curKey();
         m = site.lastMessage(doc);
         if (sameKey(cur, target.key) && m) break;
         await sleep(300);
@@ -188,7 +219,7 @@ function createCore(site, ipcr, doc) {
         const why = !cur ? 'খোলা চ্যাটের নাম পড়া যায়নি'
           : !sameKey(cur, target.key) ? 'খোলা চ্যাটের নাম তালিকার নামের সাথে মেলেনি'
             : 'চ্যাটের শেষ মেসেজ পড়া যায়নি';
-        send({ t: 'info', s: 'চ্যাট খোলা যায়নি (' + why + ')' });
+        send({ t: 'info', s: 'চ্যাট খোলা যায়নি (' + why + ')' + (site.diag ? ' [' + site.diag(doc) + ']' : '') });
         return;
       }
       const prevId = lastMid.get(target.key);
@@ -223,7 +254,7 @@ function createCore(site, ipcr, doc) {
     started = true;
     if (target) { await openAndHandle(target); return; }
     // এই মুহূর্তে খোলা চ্যাটে নতুন মেসেজ এলে (অপঠিত চিহ্ন ওঠে না)
-    const cur = site.openKey(doc);
+    const cur = curKey();
     if (!cur) return;
     const m = site.lastMessage(doc);
     if (!m) return;
@@ -238,7 +269,7 @@ function createCore(site, ipcr, doc) {
     if (!pending) return;
     if (c.t === 'skip') { finish(); return; }
     if (c.t === 'reply') {
-      if (!sameKey(site.openKey(doc), pending.key)) {
+      if (!sameKey(curKey(), pending.key)) {
         send({ t: 'result', ok: false, reason: 'চ্যাট বদলে গেছে, উত্তর পাঠানো হয়নি' });
         finish();
         return;
