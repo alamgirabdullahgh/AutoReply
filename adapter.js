@@ -17,9 +17,22 @@ function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 function clickEl(el) {
   const w = el.ownerDocument.defaultView;
-  for (const t of ['mousedown', 'mouseup', 'click']) {
-    el.dispatchEvent(new w.MouseEvent(t, { bubbles: true, cancelable: true, view: w }));
+  for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+    const E = (t.startsWith('pointer') && w.PointerEvent) ? w.PointerEvent : w.MouseEvent;
+    try { el.dispatchEvent(new E(t, { bubbles: true, cancelable: true, view: w, button: 0 })); } catch (e) { /* ignore */ }
   }
+}
+
+// চ্যাটের নাম মেলানো: ফাঁকা জায়গা, অদৃশ্য দিক-চিহ্ন, বিরামচিহ্ন, বড়/ছোট হাতের তফাত উপেক্ষা (নম্বরের ফরম্যাট তালিকা ও হেডারে আলাদা হতে পারে)
+function normKey(s) {
+  try { return String(s || '').normalize('NFC').replace(/[^\p{L}\p{N}]/gu, '').toLowerCase(); } catch (e) { return String(s || '').trim().toLowerCase(); }
+}
+function sameKey(a, b) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const x = normKey(a);
+  const y = normKey(b);
+  return x !== '' && x === y;
 }
 
 // ---------------- WhatsApp Web ----------------
@@ -46,18 +59,32 @@ const whatsapp = {
   },
   clickRow: (r) => clickEl(r.querySelector('[role="gridcell"], [data-testid="cell-frame-container"]') || r),
   openKey: (d) => {
-    const e = d.querySelector('#main header span[title]') || d.querySelector('#main header span[dir="auto"]');
-    return e ? (e.getAttribute('title') || txt(e)).trim() : '';
+    for (const sel of ['#main header span[title]', '#main header span[dir="auto"]', '#main header [dir="auto"]']) {
+      const e = d.querySelector(sel);
+      const v = e ? (e.getAttribute('title') || txt(e)).trim() : '';
+      if (v) return v;
+    }
+    return '';
   },
   lastMessage: (d) => {
-    const els = Array.from(d.querySelectorAll('#main div[data-id]')).filter((e) => /^(true|false)_/.test(e.getAttribute('data-id')));
+    let els = Array.from(d.querySelectorAll('#main div[data-id]')).filter((e) => /^(true|false)_/.test(e.getAttribute('data-id')));
+    // ফলব্যাক: WhatsApp Web-এর ভেতরের গঠন বদলালে message-in/out ক্লাস দিয়ে ধরা
+    if (!els.length) els = Array.from(d.querySelectorAll('#main .message-in, #main .message-out'));
     const e = els[els.length - 1];
     if (!e) return null;
-    const id = e.getAttribute('data-id');
-    const own = id.startsWith('true_');
+    const inner = e.getAttribute('data-id') ? e : e.querySelector('[data-id]');
+    const meta = e.querySelector('[data-pre-plain-text]');
+    const msgOut = !!(e.classList && e.classList.contains('message-out')) || !!(e.closest && e.closest('.message-out'));
+    let id = (inner && inner.getAttribute('data-id')) || '';
+    const own = id ? id.startsWith('true_') : msgOut;
     let spans = Array.from(e.querySelectorAll('span.selectable-text.copyable-text'));
     if (!spans.length) spans = Array.from(e.querySelectorAll('span.selectable-text'));
+    if (!spans.length) spans = Array.from(e.querySelectorAll('[data-testid="selectable-text"], .copyable-text span'));
     const text = spans.map((s) => String(s.innerText || s.textContent || '').trim()).filter(Boolean).join('\n');
+    if (!id) {
+      // পরিচয় না পেলে সময়-চিহ্ন + লেখা দিয়ে বানানো, যাতে একই মেসেজে দুবার উত্তর না যায়
+      id = (own ? 'true_' : 'false_') + 'syn_' + (meta ? meta.getAttribute('data-pre-plain-text') : '') + '|' + text.length + '|' + text.slice(0, 40) + '|' + els.length;
+    }
     let skip = null;
     if (/@(broadcast|newsletter)/.test(id) || /status@broadcast/.test(id)) skip = 'ব্রডকাস্ট/চ্যানেল/স্ট্যাটাস, তাই বাদ';
     return { id, own, text, isGroup: /@g\.us/.test(id), skip };
@@ -152,12 +179,18 @@ function createCore(site, ipcr, doc) {
       while (Date.now() - t0 < 5000) {
         cur = site.openKey(doc);
         m = site.lastMessage(doc);
-        if (cur === target.key && m) break;
+        if (sameKey(cur, target.key) && m) break;
         await sleep(300);
       }
       unread.set(target.key, 0);
       busy = false;
-      if (!(cur === target.key && m)) { send({ t: 'info', s: 'চ্যাট খোলা যায়নি' }); return; }
+      if (!(sameKey(cur, target.key) && m)) {
+        const why = !cur ? 'খোলা চ্যাটের নাম পড়া যায়নি'
+          : !sameKey(cur, target.key) ? 'খোলা চ্যাটের নাম তালিকার নামের সাথে মেলেনি'
+            : 'চ্যাটের শেষ মেসেজ পড়া যায়নি';
+        send({ t: 'info', s: 'চ্যাট খোলা যায়নি (' + why + ')' });
+        return;
+      }
       const prevId = lastMid.get(target.key);
       lastMid.set(target.key, m.id);
       if (m.own || prevId === m.id) return;
@@ -205,7 +238,7 @@ function createCore(site, ipcr, doc) {
     if (!pending) return;
     if (c.t === 'skip') { finish(); return; }
     if (c.t === 'reply') {
-      if (site.openKey(doc) !== pending.key) {
+      if (!sameKey(site.openKey(doc), pending.key)) {
         send({ t: 'result', ok: false, reason: 'চ্যাট বদলে গেছে, উত্তর পাঠানো হয়নি' });
         finish();
         return;
