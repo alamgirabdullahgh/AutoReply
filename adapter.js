@@ -204,6 +204,14 @@ function createCore(site, ipcr, doc) {
     try {
       site.clickRow(target.row);
       await sleep(900);
+      // কৃত্রিম ক্লিকে চ্যাট না খুললে আসল মাউস-ক্লিক (অ্যাপের মূল প্রক্রিয়া দিয়ে) একবার পাঠানো
+      if (!sameKey(curKey(), target.key) && target.row.getBoundingClientRect) {
+        const rc = target.row.getBoundingClientRect();
+        if (rc.width > 0 && rc.height > 0) {
+          send({ t: 'click', x: Math.round(rc.left + rc.width / 2), y: Math.round(rc.top + rc.height / 2) });
+          await sleep(1200);
+        }
+      }
       let cur = '';
       let m = null;
       const t0 = Date.now();
