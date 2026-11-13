@@ -429,11 +429,22 @@
       renderRules();
     };
     $('#ai-close').onclick = () => showPane(null);
-    $('#ai-test').onclick = async () => {
-      $('#ai-result').textContent = 'অপেক্ষা করুন…';
-      const r = await window.ar.aiTest(aiCfg());
-      $('#ai-result').textContent = r.text ? 'সফল। নমুনা উত্তর: ' + r.text.slice(0, 200) : 'ব্যর্থ: ' + r.error;
+    const runTest = async () => {
+      const q = $('#ai-testq').value.trim();
+      if (!q) return;
+      const out = $('#ai-result');
+      out.hidden = false; out.className = 'aiout'; out.textContent = 'অপেক্ষা করুন…';
+      const r = await window.ar.aiTest(aiCfg(), q);
+      if (r.text) {
+        out.textContent = 'প্রশ্ন: ' + q + '\n\n' + r.text;
+        // উত্তর এলে ঘর খালি হয় (নতুন প্রশ্ন লেখার জন্য); ব্যর্থ হলে প্রশ্ন থাকে, যেন আবার চেষ্টা করা যায়
+        if ($('#ai-testq').value.trim() === q) $('#ai-testq').value = '';
+      } else {
+        out.className = 'aiout err'; out.textContent = 'ব্যর্থ: ' + r.error;
+      }
     };
+    $('#ai-test').onclick = runTest;
+    $('#ai-testq').addEventListener('keydown', (e) => { if (e.key === 'Enter') runTest(); });
   }
 
   // ---------- আপডেট ----------

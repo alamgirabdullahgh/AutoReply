@@ -103,7 +103,9 @@
             <label class="fld">মডেল (ঐচ্ছিক)<input type="text" id="ai-model"></label>
             <label class="fld">Base URL<input type="text" id="ai-base"></label>
           </details>
-          <div class="row"><button id="ai-test" class="ghost">পরীক্ষা করুন</button><span id="ai-result" class="hint"></span></div>
+          <label class="fld">পরীক্ষা<input type="text" id="ai-testq" autocomplete="off" placeholder="প্রশ্ন লিখুন"></label>
+          <div class="row"><button id="ai-test" class="ghost">পরীক্ষা করুন</button></div>
+          <div id="ai-result" class="aiout" hidden></div>
           <p class="hint">শুধু মেসেজের লেখা আপনার বেছে নেওয়া AI সেবায় যায় (নাম/নম্বর নয়)। API কী শুধু এই কম্পিউটারে থাকে।</p>
         </div>
       </div>

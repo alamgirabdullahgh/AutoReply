@@ -6,7 +6,7 @@ contextBridge.exposeInMainWorld('ar', {
   setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
   decide: (p) => ipcRenderer.invoke('decide', p),
   type: (id, text) => ipcRenderer.invoke('type', { id, text }),
-  aiTest: (cfg) => ipcRenderer.invoke('ai:test', cfg),
+  aiTest: (cfg, q) => ipcRenderer.invoke('ai:test', cfg, q),
   updateState: () => ipcRenderer.invoke('update:state'),
   updateCheck: () => ipcRenderer.invoke('update:check'),
   updateInstall: () => ipcRenderer.invoke('update:install'),

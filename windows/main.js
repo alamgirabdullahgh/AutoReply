@@ -178,8 +178,8 @@ function boot() {
   ipcMain.handle('type', async (_e, p) => {
     try { await typeText(p.id, p.text); return { ok: true }; } catch (x) { return { ok: false, err: String(x && x.message || x) }; }
   });
-  ipcMain.handle('ai:test', async (_e, cfg) => {
-    const r = await ai.test(cfg, 'আপনারা কী কী সেবা দেন?');
+  ipcMain.handle('ai:test', async (_e, cfg, q) => {
+    const r = await ai.test(cfg, String(q || '').trim() || 'আপনারা কী কী সেবা দেন?');
     return r;
   });
 
