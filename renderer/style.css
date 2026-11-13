@@ -123,3 +123,7 @@ body.viewing #panel { display:none; }
 
 .dialog .vrow { border-top:1px solid var(--line); padding:10px 0; }
 .dialog .vrow:first-of-type { border-top:0; }
+
+.aiout { margin-top:8px; padding:10px 12px; border-radius:12px; background:rgba(255,255,255,.04); border:1px solid #6B7B80; color:var(--ink); font-size:13px; line-height:1.6; white-space:pre-wrap; word-break:break-word; user-select:text; }
+.aiout.err { color:#E8A33D; }
+.aiout[hidden] { display:none; }
