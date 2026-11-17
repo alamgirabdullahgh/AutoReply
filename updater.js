@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const REPO = 'alamgirabdullahgh/AutoReply';
+const REPO = 'alamgirabdullahgh/Daily-Reply'; // রিপো নাম বদলেছে; ইনস্টলারের ফাইল-নাম (AutoReply-Setup-…) আগের মতো, নইলে পুরনো কপির আপডেট ভাঙবে
 const TAG_RE = /releases\/tag\/(windows-v(\d+)\.(\d+)\.(\d+))/g;
 
 // "1.0.37" -> 37 (শেষ সংখ্যাই সংস্করণ নম্বর)

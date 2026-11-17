@@ -8,10 +8,10 @@ const path = require('path');
 const U = require('../updater');
 
 const FEED = `<feed>
-<entry><link rel="alternate" href="https://github.com/alamgirabdullahgh/AutoReply/releases/tag/v1.0.222"/></entry>
-<entry><link rel="alternate" href="https://github.com/alamgirabdullahgh/AutoReply/releases/tag/windows-v1.0.9"/></entry>
-<entry><link rel="alternate" href="https://github.com/alamgirabdullahgh/AutoReply/releases/tag/windows-v1.0.12"/></entry>
-<entry><link rel="alternate" href="https://github.com/alamgirabdullahgh/AutoReply/releases/tag/windows-v1.0.3"/></entry>
+<entry><link rel="alternate" href="https://github.com/alamgirabdullahgh/Daily-Reply/releases/tag/v1.0.222"/></entry>
+<entry><link rel="alternate" href="https://github.com/alamgirabdullahgh/Daily-Reply/releases/tag/windows-v1.0.9"/></entry>
+<entry><link rel="alternate" href="https://github.com/alamgirabdullahgh/Daily-Reply/releases/tag/windows-v1.0.12"/></entry>
+<entry><link rel="alternate" href="https://github.com/alamgirabdullahgh/Daily-Reply/releases/tag/windows-v1.0.3"/></entry>
 </feed>`;
 
 test('সংস্করণ নম্বর: শেষ সংখ্যা', () => {
@@ -24,7 +24,7 @@ test('ফিড থেকে সবচেয়ে বড় windows ট্য�
   const i = U.pickLatest(FEED);
   assert.strictEqual(i.n, 12);
   assert.strictEqual(i.tag, 'windows-v1.0.12');
-  assert.strictEqual(i.url, 'https://github.com/alamgirabdullahgh/AutoReply/releases/download/windows-v1.0.12/AutoReply-Setup-1.0.12.exe');
+  assert.strictEqual(i.url, 'https://github.com/alamgirabdullahgh/Daily-Reply/releases/download/windows-v1.0.12/AutoReply-Setup-1.0.12.exe');
 });
 
 test('windows ট্যাগ না থাকলে null', () => {

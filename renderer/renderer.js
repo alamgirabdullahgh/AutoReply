@@ -150,7 +150,7 @@
       if (d.reply) {
         addLog(lbl, 'উত্তর তৈরি (' + (d.via === 'ai' ? 'AI' : 'নিয়ম') + '), পাঠানো হচ্ছে…');
         await sleep(randDelay());
-        wv.send('ar-cmd', { t: 'reply', text: d.reply });
+        wv.send('ar-cmd', { t: 'reply', text: d.reply.replace(/\s+$/, '') + '\nDR' }); // নিচে DR সই: অটো আর হাতের মেসেজ আলাদা চেনার জন্য
       } else {
         addLog(lbl, d.reason);
         wv.send('ar-cmd', { t: 'skip' });
@@ -453,7 +453,7 @@
 
   // ---------- আপডেট ----------
   function renderUpdate() {
-    $('#ver').textContent = 'AutoReply v' + (upd.cur || '');
+    $('#ver').textContent = 'Daily Reply v' + (upd.cur || '');
     const b = $('#update-btn');
     if (!upd.latest) { b.classList.add('hidden'); return; }
     b.classList.remove('hidden');

@@ -168,7 +168,7 @@ test('অ্যাপে চাপলে মাঝের অংশে ওয়�
 test('আপডেট না থাকলে বোতাম লুকানো, সংস্করণ দেখায়', async () => {
   const { d } = await boot();
   assert.ok(d.querySelector('#update-btn').classList.contains('hidden'));
-  assert.strictEqual(d.querySelector('#ver').textContent, 'AutoReply v1.0.5');
+  assert.strictEqual(d.querySelector('#ver').textContent, 'Daily Reply v1.0.5');
 });
 
 test('আপডেট থাকলে "Update" বোতাম; চাপলে শতাংশ ও Installing…', async () => {

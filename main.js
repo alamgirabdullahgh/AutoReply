@@ -127,7 +127,7 @@ function boot() {
     minHeight: 600,
     show: !(process.argv.includes('--hidden') || consumeHideMarker()),
     autoHideMenuBar: true,
-    title: 'AutoReply',
+    title: 'Daily Reply',
     icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -175,9 +175,9 @@ function boot() {
   try {
     const img = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png')).resize({ width: 16, height: 16 });
     tray = new Tray(img);
-    tray.setToolTip('AutoReply');
+    tray.setToolTip('Daily Reply');
     tray.setContextMenu(Menu.buildFromTemplate([
-      { label: 'AutoReply খুলুন', click: showWindow },
+      { label: 'Daily Reply খুলুন', click: showWindow },
       { type: 'separator' },
       { label: 'বন্ধ করুন (উত্তর দেওয়া থামবে)', click: () => { quitting = true; app.quit(); } }
     ]));
