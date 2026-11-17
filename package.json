@@ -2,7 +2,7 @@
   "name": "autoreply-windows",
   "productName": "AutoReply",
   "version": "1.0.0",
-  "description": "Daily Reply for Windows: WhatsApp Web / Telegram Web auto reply with rules and optional AI",
+  "description": "AutoReply for Windows: WhatsApp Web / Telegram Web auto reply with rules and optional AI",
   "main": "main.js",
   "author": "Rah Care",
   "license": "UNLICENSED",
@@ -53,7 +53,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Daily Reply",
+      "shortcutName": "AutoReply",
       "artifactName": "AutoReply-Setup-${version}.exe"
     }
   }
