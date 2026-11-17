@@ -1,0 +1,26 @@
+name: Bridge Android update
+
+# একবারের কাজ: ফোনের পুরনো "AutoReply" অ্যাপ এই রিপোর latest release দেখে আপডেট খোঁজে।
+# নতুন Daily Reply APK এখানে পুরনো নাম (AutoReply.apk) দিয়ে রাখা হয়, যাতে পুরনো কপি আপডেট হয়ে নতুন রিপো (Daily-Reply) থেকে আপডেট নিতে শুরু করে।
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Android release tag, e.g. v1.0.223'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy APK from Daily-Reply release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsSL -o AutoReply.apk "https://github.com/alamgirabdullahgh/Daily-Reply/releases/download/${{ inputs.tag }}/DailyReply.apk"
+          ls -l AutoReply.apk
+          gh release upload "${{ inputs.tag }}" AutoReply.apk --clobber --repo "${{ github.repository }}"
